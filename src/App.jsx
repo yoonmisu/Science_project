@@ -1,10 +1,21 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
 
 function App() {
   const [count, setCount] = useState(0)
+  const [message, setMessage] = useState("Loading...");
+
+  useEffect(() => {
+    fetch("http://127.0.0.1:8000/")
+      .then((res) => res.json())
+      .then((data) => setMessage(data.message))
+      .catch((err) => {
+        console.error("백엔드 연결 실패:", err);
+        setMessage("백엔드 연결 실패");
+      });
+  }, []);
 
   return (
     <>
