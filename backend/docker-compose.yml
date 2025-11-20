@@ -1,36 +1,56 @@
 version: '3.8'
 
 services:
-  # FastAPI 애플리케이션 서비스 (호스트 DB에 연결)
-  web:
-    build: .
-    container_name: verde-fastapi
-    restart: always
-    command: uvicorn main:app --host 0.0.0.0 --port 8000
-    volumes:
-      - .:/app
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
-    # 🚨 호스트 머신 접근을 위한 extra_hosts 설정
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-  # 2. PostgreSQL 데이터베이스 서비스
   db:
-    image: postgres:16-alpine # 가볍고 안정적인 최신 PostgreSQL 이미지 사용
-    container_name: verde-postgres-db
-    restart: always
-    # .env 파일의 환경 변수를 DB 설정에 사용
-    env_file:
-      - .env
-    # 데이터를 영구 저장할 볼륨 설정 (컨테이너가 삭제되어도 데이터는 유지)
+    image: postgres:16-alpine
+    container_name: verde_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-verde_db}
     volumes:
-      - postgres_data:/var/lib/postgresql/data/
-    # 5432 포트를 호스트에 노출 (선택 사항: 호스트에서 DB 툴로 접근할 때 필요)
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-# 볼륨 정의
+  redis:
+    image: redis:7-alpine
+    container_name: verde_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: verde_api
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-verde_db}
+      REDIS_URL: redis://redis:6379/0
+      DEBUG: ${DEBUG:-False}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
 volumes:
   postgres_data:
+  redis_data:
