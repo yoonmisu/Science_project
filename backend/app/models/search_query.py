@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Index
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -9,19 +9,19 @@ class SearchQuery(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     # Search Information
-    query = Column(String(500), nullable=False, index=True)
-    category = Column(String(50))  # Filter by category if specified
-    region = Column(String(100))  # Filter by region if specified
+    query_text = Column(String(200), nullable=False, index=True)
+    search_count = Column(Integer, default=1)
+    last_searched_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # Results
-    results_count = Column(Integer, default=0)
+    # Optional Filters
+    category = Column(String(50), nullable=True)
+    region = Column(String(100), nullable=True)
 
-    # User Information (optional)
-    user_ip = Column(String(45))  # IPv6 compatible
-    user_agent = Column(String(500))
-
-    # Metadata
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    # Composite indexes
+    __table_args__ = (
+        Index('ix_search_query_count', 'search_count', postgresql_using='btree'),
+        Index('ix_search_query_text_category', 'query_text', 'category'),
+    )
 
     def __repr__(self):
-        return f"<SearchQuery '{self.query}' ({self.results_count} results)>"
+        return f"<SearchQuery '{self.query_text}' (count: {self.search_count})>"

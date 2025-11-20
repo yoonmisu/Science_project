@@ -5,36 +5,30 @@ from enum import Enum
 
 
 class CategoryEnum(str, Enum):
-    ANIMAL = "animal"
-    PLANT = "plant"
-    INSECT = "insect"
-    MARINE = "marine"
+    PLANT = "식물"
+    ANIMAL = "동물"
+    INSECT = "곤충"
+    MARINE = "해양생물"
 
 
 class ConservationStatusEnum(str, Enum):
-    LC = "LC"
-    NT = "NT"
-    VU = "VU"
-    EN = "EN"
-    CR = "CR"
-    EW = "EW"
-    EX = "EX"
+    ENDANGERED = "멸종위기"
+    VULNERABLE = "취약"
+    NEAR_THREATENED = "준위협"
+    LEAST_CONCERN = "관심대상"
+    SAFE = "안전"
 
 
 class SpeciesBase(BaseModel):
-    name_ko: str = Field(..., min_length=1, max_length=255, description="Korean name")
-    name_en: Optional[str] = Field(None, max_length=255, description="English name")
-    name_scientific: Optional[str] = Field(None, max_length=255, description="Scientific name")
+    name: str = Field(..., min_length=1, max_length=200, description="한글명")
+    scientific_name: Optional[str] = Field(None, max_length=200, description="학명")
     category: CategoryEnum
-    region: str = Field(..., max_length=100)
+    region: str = Field(..., max_length=100, description="지역")
+    country: str = Field(..., max_length=100, description="국가")
     description: Optional[str] = None
-    habitat: Optional[str] = None
-    distribution: Optional[str] = None
-    conservation_status: ConservationStatusEnum = ConservationStatusEnum.LC
-    is_endangered: bool = False
-    population_trend: Optional[str] = None
-    image_url: Optional[str] = None
-    thumbnail_url: Optional[str] = None
+    characteristics: Optional[list[str]] = None
+    conservation_status: ConservationStatusEnum = ConservationStatusEnum.SAFE
+    image_url: Optional[str] = Field(None, max_length=500)
 
 
 class SpeciesCreate(SpeciesBase):
@@ -42,23 +36,20 @@ class SpeciesCreate(SpeciesBase):
 
 
 class SpeciesUpdate(BaseModel):
-    name_ko: Optional[str] = Field(None, min_length=1, max_length=255)
-    name_en: Optional[str] = Field(None, max_length=255)
-    name_scientific: Optional[str] = Field(None, max_length=255)
+    name: Optional[str] = Field(None, min_length=1, max_length=200)
+    scientific_name: Optional[str] = Field(None, max_length=200)
     category: Optional[CategoryEnum] = None
     region: Optional[str] = Field(None, max_length=100)
+    country: Optional[str] = Field(None, max_length=100)
     description: Optional[str] = None
-    habitat: Optional[str] = None
-    distribution: Optional[str] = None
+    characteristics: Optional[list[str]] = None
     conservation_status: Optional[ConservationStatusEnum] = None
-    is_endangered: Optional[bool] = None
-    population_trend: Optional[str] = None
-    image_url: Optional[str] = None
-    thumbnail_url: Optional[str] = None
+    image_url: Optional[str] = Field(None, max_length=500)
 
 
 class SpeciesResponse(SpeciesBase):
     id: int
+    search_count: int = 0
     created_at: datetime
     updated_at: Optional[datetime] = None
 

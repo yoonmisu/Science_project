@@ -1,9 +1,19 @@
-from app.schemas.species import SpeciesBase, SpeciesCreate, SpeciesUpdate, SpeciesResponse
-from app.schemas.search import SearchQueryCreate, SearchQueryResponse, SearchResult
-from app.schemas.region import RegionBiodiversityBase, RegionBiodiversityResponse, RegionStats
+from app.schemas.species import (
+    SpeciesBase, SpeciesCreate, SpeciesUpdate, SpeciesResponse, SpeciesList,
+    CategoryEnum, ConservationStatusEnum
+)
+from app.schemas.search import (
+    SearchQueryCreate, SearchQueryResponse, SearchResult, SearchResponse, PopularSearch
+)
+from app.schemas.region import (
+    RegionBiodiversityBase, RegionBiodiversityCreate, RegionBiodiversityUpdate,
+    RegionBiodiversityResponse, RegionStats, RegionComparison
+)
 
 __all__ = [
-    "SpeciesBase", "SpeciesCreate", "SpeciesUpdate", "SpeciesResponse",
-    "SearchQueryCreate", "SearchQueryResponse", "SearchResult",
-    "RegionBiodiversityBase", "RegionBiodiversityResponse", "RegionStats"
+    "SpeciesBase", "SpeciesCreate", "SpeciesUpdate", "SpeciesResponse", "SpeciesList",
+    "CategoryEnum", "ConservationStatusEnum",
+    "SearchQueryCreate", "SearchQueryResponse", "SearchResult", "SearchResponse", "PopularSearch",
+    "RegionBiodiversityBase", "RegionBiodiversityCreate", "RegionBiodiversityUpdate",
+    "RegionBiodiversityResponse", "RegionStats", "RegionComparison"
 ]
