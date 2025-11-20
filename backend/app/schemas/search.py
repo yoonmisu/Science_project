@@ -4,18 +4,18 @@ from datetime import datetime
 
 
 class SearchQueryCreate(BaseModel):
-    query: str = Field(..., min_length=1, max_length=500)
+    query_text: str = Field(..., min_length=1, max_length=200)
     category: Optional[str] = None
     region: Optional[str] = None
 
 
 class SearchQueryResponse(BaseModel):
     id: int
-    query: str
+    query_text: str
+    search_count: int
+    last_searched_at: datetime
     category: Optional[str]
     region: Optional[str]
-    results_count: int
-    created_at: datetime
 
     class Config:
         from_attributes = True
@@ -23,14 +23,14 @@ class SearchQueryResponse(BaseModel):
 
 class SearchResult(BaseModel):
     id: int
-    name_ko: str
-    name_en: Optional[str]
-    name_scientific: Optional[str]
+    name: str
+    scientific_name: Optional[str]
     category: str
     region: str
-    is_endangered: bool
-    thumbnail_url: Optional[str]
-    relevance_score: Optional[float] = None
+    country: str
+    conservation_status: str
+    image_url: Optional[str]
+    search_count: int
 
     class Config:
         from_attributes = True
@@ -41,3 +41,8 @@ class SearchResponse(BaseModel):
     results: list[SearchResult]
     total: int
     suggestions: list[str] = []
+
+
+class PopularSearch(BaseModel):
+    query_text: str
+    search_count: int
