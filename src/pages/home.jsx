@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, ChevronRight } from 'lucide-react';
 import logoImg from '../assets/logo.png';
+import mapImg from '../assets/map.png';
 
 // category color
 const categoryThemes = {
@@ -104,6 +105,53 @@ const countryData = {
       { id: 2, name: '상어', image: '🦈', color: 'gray' },
       { id: 3, name: '바다거북', image: '🐢', color: 'green' }
     ]
+  },
+  china: {
+    name: '중국',
+    식물: [
+      { id: 1, name: '무궁화', image: '🌺', color: 'purple' },
+      { id: 2, name: '코스모스', image: '🌸', color: 'orange' },
+      { id: 3, name: '벚꽃', image: '🌸', color: 'pink' }
+    ],
+    동물: [
+      { id: 1, name: '호랑이', image: '🐯', color: 'orange' },
+      { id: 2, name: '까치', image: '🐦', color: 'black' },
+      { id: 3, name: '노루', image: '🦌', color: 'brown' }
+    ],
+    곤충: [
+      { id: 1, name: '무당벌레', image: '🐞', color: 'red' },
+      { id: 2, name: '나비', image: '🦋', color: 'blue' },
+      { id: 3, name: '잠자리', image: '🦟', color: 'green' }
+    ],
+    해양생물: [
+      { id: 1, name: '명태', image: '🐟', color: 'silver' },
+      { id: 2, name: '해파리', image: '🪼', color: 'transparent' },
+      { id: 3, name: '문어', image: '🐙', color: 'red' }
+    ]
+  },
+  
+  russia: {
+    name: '러시아',
+    식물: [
+      { id: 1, name: '무궁화', image: '🌺', color: 'purple' },
+      { id: 2, name: '코스모스', image: '🌸', color: 'orange' },
+      { id: 3, name: '벚꽃', image: '🌸', color: 'pink' }
+    ],
+    동물: [
+      { id: 1, name: '호랑이', image: '🐯', color: 'orange' },
+      { id: 2, name: '까치', image: '🐦', color: 'black' },
+      { id: 3, name: '노루', image: '🦌', color: 'brown' }
+    ],
+    곤충: [
+      { id: 1, name: '무당벌레', image: '🐞', color: 'red' },
+      { id: 2, name: '나비', image: '🦋', color: 'blue' },
+      { id: 3, name: '잠자리', image: '🦟', color: 'green' }
+    ],
+    해양생물: [
+      { id: 1, name: '명태', image: '🐟', color: 'silver' },
+      { id: 2, name: '해파리', image: '🪼', color: 'transparent' },
+      { id: 3, name: '문어', image: '🐙', color: 'red' }
+    ]
   }
 };
 
@@ -126,6 +174,8 @@ const HomePage = () => {
     '대한민국 해양 생물 다양성',
     '일본 식물 멸종위기 종류',
     '대한민국 곤충 멸종위기 종류',
+    '중국 동물 생물 다양성',
+    '호주 멸종 위기종!!!!'
   ];
 
   const handleCountryClick = (countryId) => {
@@ -153,7 +203,7 @@ const HomePage = () => {
       <div style={{ padding: '20px 0' }}>
         <div style={{ 
           display: 'flex', 
-          justifyContent: 'space-between', 
+          justifyContent: 'space-between',
           alignItems: 'center'
         }}>
           <img src={logoImg} alt="Verde 로고" style={{ height: '60px' }}/>
@@ -255,23 +305,14 @@ const HomePage = () => {
               height: '450px'
             }}>
               {/* 여기에 지도 이미지가 들어갈 부분 */}
-              <div style={{
-                position: 'relative',
-                width: '100%',
-                height: '100%',
-                backgroundColor: '#f0f4f0',
-                borderRadius: '15px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
+              <img src={mapImg} alt="세계지도" style={{ width: '800px', height: '460px' }}/>
                 {/* 클릭 가능한 국가 버튼들 */}
                 <button
                   onClick={() => handleCountryClick('korea')}
                   style={{
                     position: 'absolute',
-                    top: '35%',
-                    right: '20%',
+                    top: '45%',
+                    right: '28%',
                     width: '50px',
                     height: '50px',
                     borderRadius: '50%',
@@ -282,21 +323,23 @@ const HomePage = () => {
                     cursor: 'pointer',
                     boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
                     transition: 'transform 0.2s',
-                    textAlign: 'center'
+                    display: 'flex',              // 추가
+                    alignItems: 'center',         // 추가
+                    justifyContent: 'center'      // 추가
                   }}
                   onMouseEnter={(e) => e.target.style.transform = 'scale(1.1)'}
                   onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
                   title="대한민국"
                 >
-                  🇰🇷
+                🇰🇷
                 </button>
 
                 <button
                   onClick={() => handleCountryClick('japan')}
                   style={{
                     position: 'absolute',
-                    top: '38%',
-                    right: '15%',
+                    top: '45%',
+                    right: '25%',
                     width: '45px',
                     height: '45px',
                     borderRadius: '50%',
@@ -307,7 +350,9 @@ const HomePage = () => {
                     cursor: 'pointer',
                     boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
                     transition: 'transform 0.2s',
-                    textAlign: 'center'
+                    display: 'flex',              // 추가
+                    alignItems: 'center',         // 추가
+                    justifyContent: 'center'      // 추가
                   }}
                   onMouseEnter={(e) => e.target.style.transform = 'scale(1.1)'}
                   onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
@@ -321,7 +366,7 @@ const HomePage = () => {
                   style={{
                     position: 'absolute',
                     top: '40%',
-                    left: '22%',
+                    left: '20%',
                     width: '60px',
                     height: '60px',
                     borderRadius: '50%',
@@ -332,7 +377,9 @@ const HomePage = () => {
                     cursor: 'pointer',
                     boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
                     transition: 'transform 0.2s',
-                    textAlign: 'center'
+                    display: 'flex',              // 추가
+                    alignItems: 'center',         // 추가
+                    justifyContent: 'center'      // 추가
                   }}
                   onMouseEnter={(e) => e.target.style.transform = 'scale(1.1)'}
                   onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
@@ -341,14 +388,66 @@ const HomePage = () => {
                   🇺🇸
                 </button>
 
+                <button
+                  onClick={() => handleCountryClick('china')}
+                  style={{
+                    position: 'absolute',
+                    top: '43%',
+                    right: '35%',
+                    width: '50px',
+                    height: '50px',
+                    borderRadius: '50%',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    color: 'white',
+                    fontSize: '24px',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+                    transition: 'transform 0.2s',
+                    display: 'flex',              // 추가
+                    alignItems: 'center',         // 추가
+                    justifyContent: 'center'      // 추가
+                  }}
+                  onMouseEnter={(e) => e.target.style.transform = 'scale(1.1)'}
+                  onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                  title="중국"
+                >
+                  🇨🇳
+                </button>
+
+                <button
+                  onClick={() => handleCountryClick('russia')}
+                  style={{
+                    position: 'absolute',
+                    top: '30%',
+                    left: '60%',
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '50%',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    color: 'white',
+                    fontSize: '28px',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+                    transition: 'transform 0.2s',
+                    display: 'flex',              // 추가
+                    alignItems: 'center',         // 추가
+                    justifyContent: 'center'      // 추가
+                  }}
+                  onMouseEnter={(e) => e.target.style.transform = 'scale(1.1)'}
+                  onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                  title="러시아"
+                >
+                🇷🇺
+                </button>
+
                 <div style={{
                   color: '#a0a0a0',
                   fontSize: '14px',
                   textAlign: 'center'
                 }}>
-                  (지도 이미지 들어갈 곳)
                 </div>
-              </div>
             </div>
           </div>
         </div>
@@ -368,13 +467,17 @@ const HomePage = () => {
             padding: '20px',
             textAlign: 'center',
             cursor: 'pointer',
-            transition: 'box-shadow 0.3s'
+            transition: 'box-shadow 0.3s',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center'
           }}
           onClick={() => {/* 모달 열기 로직 추가 필요 */}}
           onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(150, 180, 150, 0.25)'}
           onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(150, 180, 150, 0.15)'}
           >
-            <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '6px' }}>
+            <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '5px' }}>
               오늘의 랜덤 생물 소개!
             </p>
             <p style={{ fontSize: '12px', color: '#808d7c' }}>자세히 보기</p>
@@ -394,7 +497,7 @@ const HomePage = () => {
           onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(150, 180, 150, 0.25)'}
           onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(150, 180, 150, 0.15)'}
           >
-            <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '6px' }}>
+            <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '5px' }}>
               가장 많이 언급되는 멸종 위기종?
             </p>
             <p style={{ fontSize: '12px', color: '#808d7c' }}>자세히 보기</p>
@@ -412,7 +515,7 @@ const HomePage = () => {
               backgroundColor: '#ffffff',
               borderRadius: '25px',
               boxShadow: '0 2px 8px rgba(150, 180, 150, 0.15)',
-              height: '370px',
+              height: '400px',
               overflow: 'hidden'
             }}>
               {searches.map((item, index) => (
