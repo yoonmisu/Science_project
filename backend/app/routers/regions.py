@@ -1,226 +1,320 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, desc
 from typing import Optional
+import logging
+import redis
+import json
 
 from app.database import get_db
-from app.models.species import Species
+from app.models.species import Species, ConservationStatusEnum
 from app.models.region_biodiversity import RegionBiodiversity
 from app.schemas.region import (
     RegionBiodiversityResponse,
     RegionBiodiversityCreate,
-    RegionStats,
-    RegionComparison
+    RegionStats
 )
+from app.config import get_settings
+
+settings = get_settings()
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/regions", tags=["Regions"])
 
-# Predefined regions with Korean names
-REGIONS = {
-    "Korea": "한국",
-    "Japan": "일본",
-    "USA": "미국",
-    "China": "중국",
-    "Russia": "러시아"
-}
+# Redis client
+try:
+    redis_client = redis.from_url(settings.redis_url)
+except Exception as e:
+    logger.warning(f"Redis connection failed: {e}")
+    redis_client = None
 
 
-@router.get("", response_model=list[RegionBiodiversityResponse])
+def get_api_response(success: bool, data=None, message: str = None):
+    """Standard API response format"""
+    response = {"success": success}
+    if data is not None:
+        response["data"] = data
+    if message:
+        response["message"] = message
+    return response
+
+
+@router.get("")
 def get_all_regions(db: Session = Depends(get_db)):
-    """Get biodiversity data for all regions"""
-    return db.query(RegionBiodiversity).all()
+    """Get all regions with biodiversity statistics, sorted by species count"""
+    try:
+        cache_key = "regions:all"
+
+        if redis_client:
+            cached = redis_client.get(cache_key)
+            if cached:
+                logger.info("Regions served from cache")
+                return get_api_response(True, json.loads(cached))
+
+        regions = db.query(RegionBiodiversity).order_by(
+            desc(RegionBiodiversity.total_species_count)
+        ).all()
+
+        result = []
+        for region in regions:
+            result.append({
+                "id": region.id,
+                "region_name": region.region_name,
+                "country": region.country,
+                "latitude": region.latitude,
+                "longitude": region.longitude,
+                "total_species_count": region.total_species_count,
+                "endangered_count": region.endangered_count,
+                "plant_count": region.plant_count,
+                "animal_count": region.animal_count,
+                "insect_count": region.insect_count,
+                "marine_count": region.marine_count,
+                "last_updated": region.last_updated.isoformat() if region.last_updated else None
+            })
+
+        if redis_client:
+            redis_client.setex(cache_key, 1800, json.dumps(result))
+
+        logger.info(f"Regions retrieved: {len(result)} items")
+        return get_api_response(True, result)
+
+    except Exception as e:
+        logger.error(f"Error fetching regions: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch regions")
 
 
 @router.get("/list")
-def get_region_list():
-    """Get list of available regions"""
-    return [
-        {"region": region, "region_ko": ko_name}
-        for region, ko_name in REGIONS.items()
-    ]
+def get_region_list(db: Session = Depends(get_db)):
+    """Get simple list of available regions"""
+    try:
+        regions = db.query(
+            RegionBiodiversity.region_name,
+            RegionBiodiversity.country
+        ).all()
 
+        result = [
+            {"region_name": r[0], "country": r[1]}
+            for r in regions
+        ]
 
-@router.get("/stats", response_model=RegionComparison)
-def get_region_comparison(db: Session = Depends(get_db)):
-    """Get comparative statistics for all regions"""
-    regions_data = db.query(RegionBiodiversity).all()
+        return get_api_response(True, result)
 
-    if not regions_data:
-        # Calculate from species table if no pre-computed data
-        return _calculate_region_stats(db)
-
-    region_stats = []
-    total_all = 0
-    max_biodiversity = ("", 0)
-    max_endangered = ("", 0)
-
-    for region in regions_data:
-        total_all += region.total_species
-
-        if region.total_species > max_biodiversity[1]:
-            max_biodiversity = (region.region, region.total_species)
-
-        endangered_pct = (region.endangered_count / region.total_species * 100) if region.total_species > 0 else 0
-
-        if region.endangered_count > max_endangered[1]:
-            max_endangered = (region.region, region.endangered_count)
-
-        region_stats.append(RegionStats(
-            region=region.region,
-            region_ko=region.region_ko,
-            total_species=region.total_species,
-            categories={
-                "animal": region.animal_count,
-                "plant": region.plant_count,
-                "insect": region.insect_count,
-                "marine": region.marine_count
-            },
-            endangered_percentage=round(endangered_pct, 2),
-            biodiversity_index=region.biodiversity_index
-        ))
-
-    return RegionComparison(
-        regions=region_stats,
-        total_species_all=total_all,
-        most_biodiverse=max_biodiversity[0],
-        most_endangered=max_endangered[0]
-    )
-
-
-@router.get("/{region}", response_model=RegionBiodiversityResponse)
-def get_region(region: str, db: Session = Depends(get_db)):
-    """Get biodiversity data for a specific region"""
-    region_data = db.query(RegionBiodiversity).filter(
-        RegionBiodiversity.region == region
-    ).first()
-
-    if not region_data:
-        raise HTTPException(status_code=404, detail="Region not found")
-
-    return region_data
+    except Exception as e:
+        logger.error(f"Error fetching region list: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch region list")
 
 
 @router.get("/{region}/species")
 def get_region_species(
     region: str,
     db: Session = Depends(get_db),
-    category: Optional[str] = None
+    category: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100)
 ):
-    """Get all species for a specific region"""
-    query = db.query(Species).filter(Species.region == region)
+    """Get species list for a specific region with optional category filter"""
+    try:
+        query = db.query(Species).filter(Species.region == region)
 
-    if category:
-        query = query.filter(Species.category == category)
+        if category:
+            query = query.filter(Species.category == category)
 
-    species = query.all()
+        total = query.count()
+        pages = (total + limit - 1) // limit if total > 0 else 0
 
-    return {
-        "region": region,
-        "region_ko": REGIONS.get(region, region),
-        "total": len(species),
-        "species": species
-    }
+        species = query.order_by(desc(Species.search_count)).offset(
+            (page - 1) * limit
+        ).limit(limit).all()
+
+        # Get region info
+        region_info = db.query(RegionBiodiversity).filter(
+            RegionBiodiversity.region_name == region
+        ).first()
+
+        logger.info(f"Species for region '{region}': {len(species)} items")
+
+        return get_api_response(True, {
+            "region": region,
+            "country": region_info.country if region_info else None,
+            "items": species,
+            "total": total,
+            "page": page,
+            "pages": pages
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching species for region {region}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch region species")
 
 
-@router.post("", response_model=RegionBiodiversityResponse, status_code=201)
-def create_region(
+@router.get("/{region}/biodiversity")
+def get_region_biodiversity(region: str, db: Session = Depends(get_db)):
+    """Get detailed biodiversity statistics for a specific region"""
+    try:
+        cache_key = f"regions:{region}:biodiversity"
+
+        if redis_client:
+            cached = redis_client.get(cache_key)
+            if cached:
+                return get_api_response(True, json.loads(cached))
+
+        # Get region data
+        region_data = db.query(RegionBiodiversity).filter(
+            RegionBiodiversity.region_name == region
+        ).first()
+
+        if not region_data:
+            raise HTTPException(status_code=404, detail=f"Region '{region}' not found")
+
+        # Get additional statistics from species
+        species_stats = db.query(
+            Species.conservation_status,
+            func.count(Species.id)
+        ).filter(
+            Species.region == region
+        ).group_by(Species.conservation_status).all()
+
+        # Most viewed species in region
+        top_species = db.query(Species).filter(
+            Species.region == region
+        ).order_by(desc(Species.search_count)).limit(5).all()
+
+        result = {
+            "region_name": region_data.region_name,
+            "country": region_data.country,
+            "coordinates": {
+                "latitude": region_data.latitude,
+                "longitude": region_data.longitude
+            },
+            "species_count": {
+                "total": region_data.total_species_count,
+                "endangered": region_data.endangered_count,
+                "by_category": {
+                    "식물": region_data.plant_count,
+                    "동물": region_data.animal_count,
+                    "곤충": region_data.insect_count,
+                    "해양생물": region_data.marine_count
+                }
+            },
+            "by_conservation_status": {
+                str(status.value if hasattr(status, 'value') else status): count
+                for status, count in species_stats
+            },
+            "top_species": [
+                {
+                    "id": s.id,
+                    "name": s.name,
+                    "category": s.category.value if hasattr(s.category, 'value') else s.category,
+                    "search_count": s.search_count
+                }
+                for s in top_species
+            ],
+            "last_updated": region_data.last_updated.isoformat() if region_data.last_updated else None
+        }
+
+        if redis_client:
+            redis_client.setex(cache_key, 1800, json.dumps(result))
+
+        logger.info(f"Biodiversity data for region '{region}' retrieved")
+        return get_api_response(True, result)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching biodiversity for region {region}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch biodiversity data")
+
+
+@router.post("", status_code=201)
+def create_or_update_region(
     region_data: RegionBiodiversityCreate,
     db: Session = Depends(get_db)
 ):
     """Create or update region biodiversity data"""
-    existing = db.query(RegionBiodiversity).filter(
-        RegionBiodiversity.region == region_data.region
-    ).first()
+    try:
+        existing = db.query(RegionBiodiversity).filter(
+            RegionBiodiversity.region_name == region_data.region_name
+        ).first()
 
-    if existing:
-        for field, value in region_data.model_dump().items():
-            setattr(existing, field, value)
-        db.commit()
-        db.refresh(existing)
-        return existing
+        if existing:
+            for field, value in region_data.model_dump().items():
+                setattr(existing, field, value)
+            db.commit()
+            db.refresh(existing)
+            result = existing
+            message = "Region updated successfully"
+        else:
+            region = RegionBiodiversity(**region_data.model_dump())
+            db.add(region)
+            db.commit()
+            db.refresh(region)
+            result = region
+            message = "Region created successfully"
 
-    region = RegionBiodiversity(**region_data.model_dump())
-    db.add(region)
-    db.commit()
-    db.refresh(region)
-    return region
+        # Invalidate cache
+        if redis_client:
+            redis_client.delete("regions:all")
+            redis_client.delete(f"regions:{region_data.region_name}:biodiversity")
+
+        logger.info(f"Region '{region_data.region_name}' saved")
+        return get_api_response(True, result, message)
+
+    except Exception as e:
+        logger.error(f"Error saving region: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to save region")
 
 
 @router.post("/refresh-stats")
-def refresh_region_stats(db: Session = Depends(get_db)):
-    """Recalculate and update region statistics from species data"""
-    for region_name, region_ko in REGIONS.items():
-        species = db.query(Species).filter(Species.region == region_name).all()
+def refresh_all_region_stats(db: Session = Depends(get_db)):
+    """Recalculate statistics for all regions from species data"""
+    try:
+        # Get all unique regions from species
+        regions = db.query(Species.region, Species.country).distinct().all()
 
-        stats = {
-            "total_species": len(species),
-            "animal_count": sum(1 for s in species if s.category.value == "animal"),
-            "plant_count": sum(1 for s in species if s.category.value == "plant"),
-            "insect_count": sum(1 for s in species if s.category.value == "insect"),
-            "marine_count": sum(1 for s in species if s.category.value == "marine"),
-            "endangered_count": sum(1 for s in species if s.is_endangered),
-            "critically_endangered_count": sum(
-                1 for s in species
-                if hasattr(s.conservation_status, 'value') and s.conservation_status.value == "CR"
-            )
-        }
+        updated_count = 0
+        for region_name, country in regions:
+            species = db.query(Species).filter(Species.region == region_name).all()
 
-        # Update or create
-        region_data = db.query(RegionBiodiversity).filter(
-            RegionBiodiversity.region == region_name
-        ).first()
+            stats = {
+                "total_species_count": len(species),
+                "plant_count": sum(1 for s in species if s.category.value == "식물"),
+                "animal_count": sum(1 for s in species if s.category.value == "동물"),
+                "insect_count": sum(1 for s in species if s.category.value == "곤충"),
+                "marine_count": sum(1 for s in species if s.category.value == "해양생물"),
+                "endangered_count": sum(
+                    1 for s in species
+                    if s.conservation_status and s.conservation_status.value in ["멸종위기", "취약"]
+                )
+            }
 
-        if region_data:
-            for key, value in stats.items():
-                setattr(region_data, key, value)
-        else:
-            region_data = RegionBiodiversity(
-                region=region_name,
-                region_ko=region_ko,
-                **stats
-            )
-            db.add(region_data)
+            region_data = db.query(RegionBiodiversity).filter(
+                RegionBiodiversity.region_name == region_name
+            ).first()
 
-    db.commit()
-    return {"message": "Region statistics refreshed successfully"}
+            if region_data:
+                for key, value in stats.items():
+                    setattr(region_data, key, value)
+            else:
+                region_data = RegionBiodiversity(
+                    region_name=region_name,
+                    country=country,
+                    **stats
+                )
+                db.add(region_data)
 
+            updated_count += 1
 
-def _calculate_region_stats(db: Session) -> RegionComparison:
-    """Calculate region stats directly from species table"""
-    region_stats = []
-    total_all = 0
-    max_biodiversity = ("", 0)
-    max_endangered = ("", 0)
+        db.commit()
 
-    for region_name, region_ko in REGIONS.items():
-        species = db.query(Species).filter(Species.region == region_name).all()
-        total = len(species)
-        total_all += total
+        # Invalidate all region caches
+        if redis_client:
+            redis_client.delete("regions:all")
 
-        endangered = sum(1 for s in species if s.is_endangered)
+        logger.info(f"Region statistics refreshed for {updated_count} regions")
+        return get_api_response(True, {"updated_regions": updated_count}, "Statistics refreshed successfully")
 
-        if total > max_biodiversity[1]:
-            max_biodiversity = (region_name, total)
-        if endangered > max_endangered[1]:
-            max_endangered = (region_name, endangered)
-
-        region_stats.append(RegionStats(
-            region=region_name,
-            region_ko=region_ko,
-            total_species=total,
-            categories={
-                "animal": sum(1 for s in species if s.category.value == "animal"),
-                "plant": sum(1 for s in species if s.category.value == "plant"),
-                "insect": sum(1 for s in species if s.category.value == "insect"),
-                "marine": sum(1 for s in species if s.category.value == "marine")
-            },
-            endangered_percentage=round((endangered / total * 100) if total > 0 else 0, 2),
-            biodiversity_index=None
-        ))
-
-    return RegionComparison(
-        regions=region_stats,
-        total_species_all=total_all,
-        most_biodiverse=max_biodiversity[0],
-        most_endangered=max_endangered[0]
-    )
+    except Exception as e:
+        logger.error(f"Error refreshing region stats: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to refresh statistics")
