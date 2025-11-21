@@ -4,8 +4,6 @@ from sqlalchemy import func, or_, desc
 from pydantic import BaseModel
 from typing import Optional
 import logging
-import redis
-import json
 from datetime import datetime, timedelta
 
 from app.database import get_db
@@ -13,18 +11,16 @@ from app.models.species import Species
 from app.models.search_query import SearchQuery
 from app.schemas.search import SearchResponse, SearchResult, PopularSearch
 from app.config import get_settings
+from app.cache import (
+    cache_get, cache_set, cache_delete,
+    increment_search_count, get_top_searches,
+    get_trending_searches_cache, set_trending_searches_cache
+)
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/search", tags=["Search"])
-
-# Redis client
-try:
-    redis_client = redis.from_url(settings.redis_url)
-except Exception as e:
-    logger.warning(f"Redis connection failed: {e}")
-    redis_client = None
 
 
 def get_api_response(success: bool, data=None, message: str = None):
@@ -44,40 +40,42 @@ class SearchRequest(BaseModel):
 
 
 @router.get("/trending")
-def get_trending_searches(db: Session = Depends(get_db)):
-    """Get top 5 trending search queries from last 24 hours"""
+def get_trending_searches(
+    db: Session = Depends(get_db),
+    daily: bool = Query(True, description="Get daily trending (True) or all-time (False)")
+):
+    """Get top 5 trending search queries using Redis Sorted Set"""
     try:
-        cache_key = "search:trending"
-
         # Check cache first (5 minutes TTL)
-        if redis_client:
-            cached = redis_client.get(cache_key)
-            if cached:
-                logger.info("Trending searches served from cache")
-                return get_api_response(True, json.loads(cached))
+        cached = get_trending_searches_cache()
+        if cached:
+            logger.info("Trending searches served from cache")
+            return get_api_response(True, cached)
 
-        # Get searches from last 24 hours
-        since = datetime.utcnow() - timedelta(hours=24)
+        # Get from Redis Sorted Set
+        result = get_top_searches(limit=5, daily=daily)
 
-        trending = db.query(
-            SearchQuery.query_text,
-            func.sum(SearchQuery.search_count).label("total_count")
-        ).filter(
-            SearchQuery.last_searched_at >= since
-        ).group_by(
-            SearchQuery.query_text
-        ).order_by(
-            desc("total_count")
-        ).limit(5).all()
+        # If Redis is empty, fall back to database
+        if not result:
+            since = datetime.utcnow() - timedelta(hours=24)
+            trending = db.query(
+                SearchQuery.query_text,
+                func.sum(SearchQuery.search_count).label("total_count")
+            ).filter(
+                SearchQuery.last_searched_at >= since
+            ).group_by(
+                SearchQuery.query_text
+            ).order_by(
+                desc("total_count")
+            ).limit(5).all()
 
-        result = [
-            {"query": q, "count": int(c)}
-            for q, c in trending
-        ]
+            result = [
+                {"query": q, "count": int(c)}
+                for q, c in trending
+            ]
 
         # Cache for 5 minutes
-        if redis_client:
-            redis_client.setex(cache_key, 300, json.dumps(result))
+        set_trending_searches_cache(result)
 
         logger.info(f"Trending searches retrieved: {len(result)} items")
         return get_api_response(True, result)
@@ -139,6 +137,9 @@ def search_species(
 
         db.commit()
 
+        # Increment search count in Redis Sorted Set
+        increment_search_count(query_text)
+
         # Format results
         search_results = [
             SearchResult(
@@ -156,8 +157,7 @@ def search_species(
         ]
 
         # Invalidate trending cache
-        if redis_client:
-            redis_client.delete("search:trending")
+        cache_delete("search:trending")
 
         logger.info(f"Search performed: '{query_text}' - {len(results)} results")
 
@@ -257,3 +257,24 @@ def get_search_history(
     except Exception as e:
         logger.error(f"Error fetching search history: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch search history")
+
+
+@router.get("/ranking")
+def get_search_ranking(
+    limit: int = Query(10, ge=1, le=100),
+    daily: bool = Query(False, description="Get daily ranking (True) or all-time (False)")
+):
+    """Get real-time search ranking from Redis Sorted Set"""
+    try:
+        result = get_top_searches(limit=limit, daily=daily)
+
+        logger.info(f"Search ranking retrieved: {len(result)} items (daily={daily})")
+        return get_api_response(True, {
+            "ranking": result,
+            "type": "daily" if daily else "all_time",
+            "total": len(result)
+        })
+
+    except Exception as e:
+        logger.error(f"Error fetching search ranking: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch ranking")

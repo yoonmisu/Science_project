@@ -1,21 +1,42 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import logging
 
 from app.config import get_settings
 from app.database import engine, Base
 from app.routers import species, search, regions, endangered
+from app.cache import init_cache, health_check as cache_health_check
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO if settings.debug else logging.WARNING,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Create tables if they don't exist
+    # Startup
+    logger.info("Starting Verde API...")
+
+    # Create database tables
     Base.metadata.create_all(bind=engine)
+    logger.info("Database tables created")
+
+    # Initialize Redis cache
+    if init_cache():
+        logger.info("Redis cache connected")
+    else:
+        logger.warning("Redis cache not available - running without cache")
+
     yield
-    # Shutdown: Cleanup if needed
-    pass
+
+    # Shutdown
+    logger.info("Shutting down Verde API...")
 
 
 app = FastAPI(
@@ -56,7 +77,22 @@ def root():
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy"}
+    """Health check endpoint for API and services"""
+    cache_status = cache_health_check()
+
+    return {
+        "status": "healthy",
+        "services": {
+            "api": "healthy",
+            "cache": cache_status
+        }
+    }
+
+
+@app.get("/health/cache")
+def cache_health():
+    """Detailed cache health check"""
+    return cache_health_check()
 
 
 if __name__ == "__main__":
