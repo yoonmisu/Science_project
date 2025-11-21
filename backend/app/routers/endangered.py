@@ -3,25 +3,17 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, or_
 from typing import Optional
 import logging
-import redis
-import json
 
 from app.database import get_db
 from app.models.species import Species, ConservationStatusEnum
 from app.schemas.species import SpeciesResponse
 from app.config import get_settings
+from app.cache import cache_get, cache_set, cache_delete
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/endangered", tags=["Endangered Species"])
-
-# Redis client
-try:
-    redis_client = redis.from_url(settings.redis_url)
-except Exception as e:
-    logger.warning(f"Redis connection failed: {e}")
-    redis_client = None
 
 
 def get_api_response(success: bool, data=None, message: str = None):

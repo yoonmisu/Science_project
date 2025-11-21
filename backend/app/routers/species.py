@@ -3,8 +3,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, asc
 from typing import Optional
 import logging
-import redis
-import json
 from datetime import datetime, date
 
 from app.database import get_db
@@ -16,18 +14,17 @@ from app.schemas.species import (
     SpeciesList
 )
 from app.config import get_settings
+from app.cache import (
+    cache_get, cache_set, cache_delete, cache_clear_pattern,
+    get_random_species_cache, set_random_species_cache,
+    get_popular_species_cache, set_popular_species_cache,
+    invalidate_species_cache
+)
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/species", tags=["Species"])
-
-# Redis client
-try:
-    redis_client = redis.from_url(settings.redis_url)
-except Exception as e:
-    logger.warning(f"Redis connection failed: {e}")
-    redis_client = None
 
 
 def get_api_response(success: bool, data=None, message: str = None):
@@ -108,14 +105,12 @@ def get_random_species(db: Session = Depends(get_db)):
     try:
         # Create date-based cache key
         today = date.today().isoformat()
-        cache_key = f"species:random:{today}"
 
         # Try to get from cache
-        if redis_client:
-            cached = redis_client.get(cache_key)
-            if cached:
-                logger.info("Random species served from cache")
-                return get_api_response(True, json.loads(cached))
+        cached = get_random_species_cache(today)
+        if cached:
+            logger.info("Random species served from cache")
+            return get_api_response(True, cached)
 
         # Get random species using date as seed
         seed = int(today.replace("-", ""))
@@ -149,8 +144,7 @@ def get_random_species(db: Session = Depends(get_db)):
         }
 
         # Cache for 24 hours
-        if redis_client:
-            redis_client.setex(cache_key, 86400, json.dumps(species_data, default=str))
+        set_random_species_cache(today, species_data)
 
         logger.info(f"Random species of the day: {species.name}")
         return get_api_response(True, species_data)
@@ -279,10 +273,9 @@ def get_species_stats(db: Session = Depends(get_db)):
     try:
         cache_key = "species:stats:summary"
 
-        if redis_client:
-            cached = redis_client.get(cache_key)
-            if cached:
-                return get_api_response(True, json.loads(cached))
+        cached = cache_get(cache_key)
+        if cached:
+            return get_api_response(True, cached)
 
         total = db.query(func.count(Species.id)).scalar()
 
@@ -308,8 +301,7 @@ def get_species_stats(db: Session = Depends(get_db)):
             "by_conservation_status": {str(status.value if hasattr(status, 'value') else status): count for status, count in by_status}
         }
 
-        if redis_client:
-            redis_client.setex(cache_key, 1800, json.dumps(stats))
+        cache_set(cache_key, stats, ttl=1800)
 
         logger.info("Species statistics retrieved")
         return get_api_response(True, stats)
@@ -317,3 +309,46 @@ def get_species_stats(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error fetching species stats: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch statistics")
+
+
+@router.get("/popular/list")
+def get_popular_species(
+    db: Session = Depends(get_db),
+    limit: int = Query(10, ge=1, le=50)
+):
+    """Get most popular species by search count (cached for 30 minutes)"""
+    try:
+        # Try cache first
+        cached = get_popular_species_cache()
+        if cached and len(cached) >= limit:
+            logger.info("Popular species served from cache")
+            return get_api_response(True, cached[:limit])
+
+        # Query from database
+        species = db.query(Species).order_by(
+            desc(Species.search_count)
+        ).limit(limit).all()
+
+        result = []
+        for s in species:
+            result.append({
+                "id": s.id,
+                "name": s.name,
+                "scientific_name": s.scientific_name,
+                "category": s.category.value if hasattr(s.category, 'value') else s.category,
+                "region": s.region,
+                "country": s.country,
+                "conservation_status": s.conservation_status.value if hasattr(s.conservation_status, 'value') else s.conservation_status,
+                "image_url": s.image_url,
+                "search_count": s.search_count or 0
+            })
+
+        # Cache for 30 minutes
+        set_popular_species_cache(result)
+
+        logger.info(f"Popular species retrieved: {len(result)} items")
+        return get_api_response(True, result)
+
+    except Exception as e:
+        logger.error(f"Error fetching popular species: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch popular species")

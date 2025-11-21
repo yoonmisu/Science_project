@@ -3,8 +3,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from typing import Optional
 import logging
-import redis
-import json
 
 from app.database import get_db
 from app.models.species import Species, ConservationStatusEnum
@@ -15,18 +13,15 @@ from app.schemas.region import (
     RegionStats
 )
 from app.config import get_settings
+from app.cache import (
+    cache_get, cache_set, cache_delete, cache_clear_pattern,
+    get_region_stats_cache, set_region_stats_cache
+)
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/regions", tags=["Regions"])
-
-# Redis client
-try:
-    redis_client = redis.from_url(settings.redis_url)
-except Exception as e:
-    logger.warning(f"Redis connection failed: {e}")
-    redis_client = None
 
 
 def get_api_response(success: bool, data=None, message: str = None):
