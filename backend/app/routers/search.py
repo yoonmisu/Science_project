@@ -1,145 +1,259 @@
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, desc
+from pydantic import BaseModel
 from typing import Optional
+import logging
+import redis
+import json
+from datetime import datetime, timedelta
 
 from app.database import get_db
 from app.models.species import Species
 from app.models.search_query import SearchQuery
-from app.schemas.search import SearchResponse, SearchResult, SearchQueryResponse
+from app.schemas.search import SearchResponse, SearchResult, PopularSearch
+from app.config import get_settings
+
+settings = get_settings()
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/search", tags=["Search"])
 
+# Redis client
+try:
+    redis_client = redis.from_url(settings.redis_url)
+except Exception as e:
+    logger.warning(f"Redis connection failed: {e}")
+    redis_client = None
 
-@router.get("", response_model=SearchResponse)
+
+def get_api_response(success: bool, data=None, message: str = None):
+    """Standard API response format"""
+    response = {"success": success}
+    if data is not None:
+        response["data"] = data
+    if message:
+        response["message"] = message
+    return response
+
+
+class SearchRequest(BaseModel):
+    query: str
+    category: Optional[str] = None
+    region: Optional[str] = None
+
+
+@router.get("/trending")
+def get_trending_searches(db: Session = Depends(get_db)):
+    """Get top 5 trending search queries from last 24 hours"""
+    try:
+        cache_key = "search:trending"
+
+        # Check cache first (5 minutes TTL)
+        if redis_client:
+            cached = redis_client.get(cache_key)
+            if cached:
+                logger.info("Trending searches served from cache")
+                return get_api_response(True, json.loads(cached))
+
+        # Get searches from last 24 hours
+        since = datetime.utcnow() - timedelta(hours=24)
+
+        trending = db.query(
+            SearchQuery.query_text,
+            func.sum(SearchQuery.search_count).label("total_count")
+        ).filter(
+            SearchQuery.last_searched_at >= since
+        ).group_by(
+            SearchQuery.query_text
+        ).order_by(
+            desc("total_count")
+        ).limit(5).all()
+
+        result = [
+            {"query": q, "count": int(c)}
+            for q, c in trending
+        ]
+
+        # Cache for 5 minutes
+        if redis_client:
+            redis_client.setex(cache_key, 300, json.dumps(result))
+
+        logger.info(f"Trending searches retrieved: {len(result)} items")
+        return get_api_response(True, result)
+
+    except Exception as e:
+        logger.error(f"Error fetching trending searches: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch trending searches")
+
+
+@router.post("")
 def search_species(
-    request: Request,
-    db: Session = Depends(get_db),
-    q: str = Query(..., min_length=1, max_length=500),
-    category: Optional[str] = None,
-    region: Optional[str] = None,
-    limit: int = Query(50, ge=1, le=100)
+    search_request: SearchRequest,
+    db: Session = Depends(get_db)
 ):
-    """Search species by name (Korean, English, or Scientific)"""
-    search_term = f"%{q}%"
+    """Perform search and log search query"""
+    try:
+        query_text = search_request.query.strip()
+        if not query_text:
+            raise HTTPException(status_code=400, detail="Search query cannot be empty")
 
-    query = db.query(Species).filter(
-        or_(
-            Species.name_ko.ilike(search_term),
-            Species.name_en.ilike(search_term),
-            Species.name_scientific.ilike(search_term)
+        search_term = f"%{query_text}%"
+
+        # Build search query
+        query = db.query(Species).filter(
+            or_(
+                Species.name.ilike(search_term),
+                Species.scientific_name.ilike(search_term),
+                Species.description.ilike(search_term)
+            )
         )
-    )
 
-    if category:
-        query = query.filter(Species.category == category)
-    if region:
-        query = query.filter(Species.region == region)
+        # Apply filters
+        if search_request.category:
+            query = query.filter(Species.category == search_request.category)
+        if search_request.region:
+            query = query.filter(Species.region == search_request.region)
 
-    results = query.limit(limit).all()
+        # Get results
+        results = query.order_by(desc(Species.search_count)).limit(50).all()
 
-    # Log search query
-    search_log = SearchQuery(
-        query=q,
-        category=category,
-        region=region,
-        results_count=len(results),
-        user_ip=request.client.host if request.client else None,
-        user_agent=request.headers.get("user-agent")
-    )
-    db.add(search_log)
-    db.commit()
+        # Log search query
+        existing_query = db.query(SearchQuery).filter(
+            SearchQuery.query_text == query_text,
+            SearchQuery.category == search_request.category,
+            SearchQuery.region == search_request.region
+        ).first()
 
-    # Convert to SearchResult
-    search_results = [
-        SearchResult(
-            id=species.id,
-            name_ko=species.name_ko,
-            name_en=species.name_en,
-            name_scientific=species.name_scientific,
-            category=species.category.value if hasattr(species.category, 'value') else species.category,
-            region=species.region,
-            is_endangered=species.is_endangered,
-            thumbnail_url=species.thumbnail_url
-        )
-        for species in results
-    ]
+        if existing_query:
+            existing_query.search_count += 1
+            existing_query.last_searched_at = datetime.utcnow()
+        else:
+            new_query = SearchQuery(
+                query_text=query_text,
+                category=search_request.category,
+                region=search_request.region,
+                search_count=1
+            )
+            db.add(new_query)
 
-    # Generate suggestions based on popular searches
-    suggestions = _get_search_suggestions(db, q)
+        db.commit()
 
-    return SearchResponse(
-        query=q,
-        results=search_results,
-        total=len(results),
-        suggestions=suggestions
-    )
+        # Format results
+        search_results = [
+            SearchResult(
+                id=s.id,
+                name=s.name,
+                scientific_name=s.scientific_name,
+                category=s.category.value if hasattr(s.category, 'value') else s.category,
+                region=s.region,
+                country=s.country,
+                conservation_status=s.conservation_status.value if hasattr(s.conservation_status, 'value') else s.conservation_status,
+                image_url=s.image_url,
+                search_count=s.search_count or 0
+            )
+            for s in results
+        ]
+
+        # Invalidate trending cache
+        if redis_client:
+            redis_client.delete("search:trending")
+
+        logger.info(f"Search performed: '{query_text}' - {len(results)} results")
+
+        return get_api_response(True, {
+            "query": query_text,
+            "results": [r.model_dump() for r in search_results],
+            "total": len(results)
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error performing search: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Search failed")
 
 
 @router.get("/suggestions")
 def get_suggestions(
     db: Session = Depends(get_db),
-    q: str = Query(..., min_length=1),
-    limit: int = Query(10, ge=1, le=20)
+    q: str = Query(..., min_length=1, max_length=100)
 ):
-    """Get autocomplete suggestions based on species names"""
-    search_term = f"{q}%"
+    """Get autocomplete suggestions for search"""
+    try:
+        search_term = f"{q}%"
 
-    # Get matching species names
-    ko_matches = db.query(Species.name_ko).filter(
-        Species.name_ko.ilike(search_term)
-    ).limit(limit).all()
+        # Get suggestions from species names
+        name_suggestions = db.query(Species.name).filter(
+            Species.name.ilike(search_term)
+        ).distinct().limit(5).all()
 
-    en_matches = db.query(Species.name_en).filter(
-        Species.name_en.ilike(search_term)
-    ).limit(limit).all()
+        scientific_suggestions = db.query(Species.scientific_name).filter(
+            Species.scientific_name.ilike(search_term),
+            Species.scientific_name.isnot(None)
+        ).distinct().limit(5).all()
 
-    suggestions = list(set(
-        [name[0] for name in ko_matches if name[0]] +
-        [name[0] for name in en_matches if name[0]]
-    ))[:limit]
+        # Combine and deduplicate
+        suggestions = list(set(
+            [n[0] for n in name_suggestions if n[0]] +
+            [s[0] for s in scientific_suggestions if s[0]]
+        ))[:10]
 
-    return {"suggestions": suggestions}
+        # Sort by relevance (exact prefix matches first)
+        suggestions.sort(key=lambda x: (not x.lower().startswith(q.lower()), len(x)))
+
+        logger.info(f"Suggestions for '{q}': {len(suggestions)} results")
+        return get_api_response(True, suggestions)
+
+    except Exception as e:
+        logger.error(f"Error fetching suggestions: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch suggestions")
 
 
-@router.get("/popular", response_model=list[SearchQueryResponse])
+@router.get("/popular")
 def get_popular_searches(
     db: Session = Depends(get_db),
     limit: int = Query(10, ge=1, le=50)
 ):
-    """Get most popular search queries"""
-    popular = db.query(
-        SearchQuery.query,
-        func.count(SearchQuery.id).label("count")
-    ).group_by(SearchQuery.query).order_by(
-        func.count(SearchQuery.id).desc()
-    ).limit(limit).all()
+    """Get most popular search queries of all time"""
+    try:
+        popular = db.query(
+            SearchQuery.query_text,
+            func.sum(SearchQuery.search_count).label("total")
+        ).group_by(
+            SearchQuery.query_text
+        ).order_by(
+            desc("total")
+        ).limit(limit).all()
 
-    return [{"query": q, "count": c} for q, c in popular]
+        result = [
+            {"query": q, "count": int(c)}
+            for q, c in popular
+        ]
+
+        logger.info(f"Popular searches retrieved: {len(result)} items")
+        return get_api_response(True, result)
+
+    except Exception as e:
+        logger.error(f"Error fetching popular searches: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch popular searches")
 
 
-@router.get("/history", response_model=list[SearchQueryResponse])
+@router.get("/history")
 def get_search_history(
     db: Session = Depends(get_db),
     limit: int = Query(20, ge=1, le=100)
 ):
     """Get recent search history"""
-    history = db.query(SearchQuery).order_by(
-        SearchQuery.created_at.desc()
-    ).limit(limit).all()
+    try:
+        history = db.query(SearchQuery).order_by(
+            desc(SearchQuery.last_searched_at)
+        ).limit(limit).all()
 
-    return history
+        logger.info(f"Search history retrieved: {len(history)} items")
+        return get_api_response(True, history)
 
-
-def _get_search_suggestions(db: Session, query: str) -> list[str]:
-    """Generate search suggestions based on similar popular queries"""
-    search_term = f"%{query}%"
-
-    similar = db.query(SearchQuery.query).filter(
-        SearchQuery.query.ilike(search_term),
-        SearchQuery.results_count > 0
-    ).group_by(SearchQuery.query).order_by(
-        func.count(SearchQuery.id).desc()
-    ).limit(5).all()
-
-    return [s[0] for s in similar if s[0] != query]
+    except Exception as e:
+        logger.error(f"Error fetching search history: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch search history")
