@@ -3,12 +3,14 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, asc
 from typing import Optional
 from datetime import date
-import json
 import logging
 
 from app.database import get_db
-from app.cache import get_cache
-from app.models.species import Species, CategoryEnum, ConservationStatusEnum
+from app.cache import (
+    cache_get, cache_set, CacheKeys,
+    get_or_set_cache
+)
+from app.models.species import Species
 from app.schemas.species import (
     SpeciesCreate,
     SpeciesUpdate,
@@ -78,16 +80,15 @@ def get_species(
 
 @router.get("/random")
 def get_random_species(db: Session = Depends(get_db)):
-    """랜덤 생물종 반환 - 날짜 기반 시드로 하루에 같은 결과"""
+    """랜덤 생물종 반환 - 날짜 기반 시드로 하루에 같은 결과 (24시간 캐싱)"""
     try:
-        redis = get_cache()
-        cache_key = f"random_species:{date.today().isoformat()}"
+        cache_key = CacheKeys.random_species_key()
 
         # 캐시 확인
-        cached = redis.get(cache_key)
+        cached = cache_get(cache_key)
         if cached:
             logger.info("Random species served from cache")
-            return json.loads(cached)
+            return cached
 
         # 날짜 기반 시드로 랜덤 선택
         today_seed = int(date.today().strftime("%Y%m%d"))
@@ -105,11 +106,11 @@ def get_random_species(db: Session = Depends(get_db)):
 
         result = {
             "success": True,
-            "data": SpeciesResponse.model_validate(species)
+            "data": SpeciesResponse.model_validate(species).model_dump()
         }
 
         # 24시간 캐싱
-        redis.setex(cache_key, 86400, json.dumps(result, default=str))
+        cache_set(cache_key, result, CacheKeys.RANDOM_SPECIES_TTL)
         logger.info(f"Random species cached: {species.name}")
 
         return result
@@ -117,6 +118,41 @@ def get_random_species(db: Session = Depends(get_db)):
         raise
     except Exception as e:
         logger.error(f"Error fetching random species: {str(e)}")
+        raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
+
+
+@router.get("/popular")
+def get_popular_species(
+    limit: int = Query(10, ge=1, le=50),
+    db: Session = Depends(get_db)
+):
+    """인기 생물종 조회 (30분 캐싱)"""
+    try:
+        cache_key = f"{CacheKeys.POPULAR_SPECIES}:{limit}"
+
+        # 캐시 확인
+        cached = cache_get(cache_key)
+        if cached:
+            logger.info("Popular species served from cache")
+            return cached
+
+        # DB에서 조회
+        species = db.query(Species).order_by(
+            desc(Species.search_count)
+        ).limit(limit).all()
+
+        result = {
+            "success": True,
+            "data": [SpeciesResponse.model_validate(s).model_dump() for s in species]
+        }
+
+        # 30분 캐싱
+        cache_set(cache_key, result, CacheKeys.POPULAR_SPECIES_TTL)
+        logger.info(f"Popular species cached: {len(species)} items")
+
+        return result
+    except Exception as e:
+        logger.error(f"Error fetching popular species: {str(e)}")
         raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
 
 

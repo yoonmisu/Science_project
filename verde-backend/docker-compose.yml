@@ -17,10 +17,13 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - verde_network
 
   redis:
     image: redis:7-alpine
     container_name: verde_redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
       - "6379:6379"
     volumes:
@@ -30,6 +33,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - verde_network
 
   api:
     build:
@@ -42,6 +47,8 @@ services:
       DATABASE_URL: postgresql://postgres:password@db:5432/verde_db
       REDIS_URL: redis://redis:6379/0
       DEBUG: "True"
+      SECRET_KEY: your-secret-key-change-in-production
+      CORS_ORIGINS: '["http://localhost:5173","http://127.0.0.1:5173"]'
     depends_on:
       db:
         condition: service_healthy
@@ -50,7 +57,13 @@ services:
     volumes:
       - .:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - verde_network
 
 volumes:
   postgres_data:
   redis_data:
+
+networks:
+  verde_network:
+    driver: bridge
