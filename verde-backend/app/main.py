@@ -31,10 +31,6 @@ tags_metadata = [
         "description": "서버 상태 확인을 위한 헬스 체크 엔드포인트",
     },
     {
-        "name": "Authentication",
-        "description": "사용자 인증 API. 회원가입, 로그인, JWT 토큰 관리, API 키 발급을 제공합니다.",
-    },
-    {
         "name": "Species",
         "description": "생물종 데이터 관리 API. 종 목록 조회, 상세 정보, CRUD 작업을 제공합니다.",
     },
@@ -54,6 +50,7 @@ tags_metadata = [
         "name": "Statistics",
         "description": "전체 생물 다양성 통계를 제공합니다.",
     },
+
     {
         "name": "Upload",
         "description": "이미지 업로드 API. S3/MinIO/로컬 스토리지를 지원합니다.",
