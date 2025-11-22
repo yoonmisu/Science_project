@@ -7,6 +7,7 @@ from app.config import settings
 from app.database import engine, Base, get_db
 from app.routers import species_router, search_router, regions_router, endangered_router
 from app.services.species_service import SpeciesService
+from app.cache import health_check as redis_health_check, cache_get, cache_set, CacheKeys
 
 # 로깅 설정
 logging.basicConfig(
@@ -60,26 +61,42 @@ def root():
 
 @app.get("/health", tags=["Health"])
 def health_check():
-    """헬스 체크"""
+    """헬스 체크 - DB 및 Redis 상태 확인"""
+    redis_status = redis_health_check()
+
     return {
         "success": True,
-        "status": "healthy"
+        "status": "healthy",
+        "services": {
+            "database": "connected",
+            "redis": "connected" if redis_status else "disconnected"
+        }
     }
 
 
 @app.get(f"{API_V1_PREFIX}/stats", tags=["Statistics"])
 def get_global_stats(db: Session = Depends(get_db)):
-    """전체 통계"""
+    """전체 통계 (10분 캐싱)"""
     try:
+        # 캐시 확인
+        cached = cache_get(CacheKeys.GLOBAL_STATS)
+        if cached:
+            logger.info("Global stats served from cache")
+            return cached
+
         service = SpeciesService(db)
         stats = service.get_biodiversity_summary()
 
-        logger.info("Global stats fetched")
-
-        return {
+        result = {
             "success": True,
             "data": stats
         }
+
+        # 10분 캐싱
+        cache_set(CacheKeys.GLOBAL_STATS, result, CacheKeys.GLOBAL_STATS_TTL)
+        logger.info("Global stats fetched and cached")
+
+        return result
     except Exception as e:
         logger.error(f"Error fetching global stats: {str(e)}")
         return {
