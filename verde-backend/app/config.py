@@ -25,11 +25,32 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> List[str]:
-        return json.loads(self.CORS_ORIGINS)
+        """CORS origins 파싱 - JSON 배열 또는 쉼표 구분 문자열 지원"""
+        origins = self.CORS_ORIGINS.strip()
+
+        # JSON 배열 형식인 경우
+        if origins.startswith('['):
+            try:
+                return json.loads(origins)
+            except json.JSONDecodeError:
+                # JSON 파싱 실패 시 괄호 제거 후 쉼표 구분으로 처리
+                origins = origins.strip('[]')
+
+        # 쉼표 구분 문자열인 경우
+        return [origin.strip().strip('"\'') for origin in origins.split(',') if origin.strip()]
+
+    @property
+    def database_url_fixed(self) -> str:
+        """Railway PostgreSQL URL 호환성 처리"""
+        url = self.DATABASE_URL
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        return url
 
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"
 
 
 settings = Settings()

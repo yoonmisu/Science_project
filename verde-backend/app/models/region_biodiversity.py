@@ -23,8 +23,8 @@ class RegionBiodiversity(Base):
     last_updated = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Composite indexes
+    # Note: Single-column index for 'country' is already created by index=True on the column
     __table_args__ = (
-        Index('ix_region_biodiversity_country', 'country'),
         Index('ix_region_biodiversity_coords', 'latitude', 'longitude'),
     )
 
