@@ -61,10 +61,10 @@ class Species(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
 
     # Composite indexes for common queries
+    # Note: Single-column indexes are already created by index=True on columns
     __table_args__ = (
         Index('ix_species_country_category', 'country', 'category'),
         Index('ix_species_region_category', 'region', 'category'),
-        Index('ix_species_conservation_status', 'conservation_status'),
     )
 
     def __repr__(self):

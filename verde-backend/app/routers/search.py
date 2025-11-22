@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_, func, desc
 from typing import Optional
 from datetime import datetime, timedelta
-from pydantic import BaseModel
 import logging
 
 from app.database import get_db
@@ -14,16 +13,11 @@ from app.cache import (
 from app.models.species import Species
 from app.models.search_query import SearchQuery
 from app.schemas.species import SpeciesResponse
+from app.schemas.search import SearchRequest
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/search", tags=["Search"])
-
-
-class SearchRequest(BaseModel):
-    query: str
-    category: Optional[str] = None
-    region: Optional[str] = None
 
 
 @router.get("/trending")
