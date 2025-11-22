@@ -26,7 +26,13 @@ class Species(Base):
     name = Column(String(200), nullable=False, index=True, comment="한글명")
     scientific_name = Column(String(200), nullable=True, comment="학명")
     category = Column(
-        Enum(CategoryEnum, name="category_enum", create_constraint=True, create_type=False),
+        Enum(
+            CategoryEnum,
+            name="category_enum",
+            values_callable=lambda x: [e.value for e in x],
+            create_constraint=True,
+            create_type=False
+        ),
         nullable=False,
         index=True
     )
@@ -38,7 +44,13 @@ class Species(Base):
     image_url = Column(String(500), nullable=True)
 
     conservation_status = Column(
-        Enum(ConservationStatusEnum, name="conservation_status_enum", create_constraint=True, create_type=False),
+        Enum(
+            ConservationStatusEnum,
+            name="conservation_status_enum",
+            values_callable=lambda x: [e.value for e in x],
+            create_constraint=True,
+            create_type=False
+        ),
         nullable=True,
         index=True
     )
