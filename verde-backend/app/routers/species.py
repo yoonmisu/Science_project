@@ -22,15 +22,48 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/species", tags=["Species"])
 
 
-@router.get("/")
+@router.get(
+    "/",
+    summary="종 목록 조회",
+    description="생물종 목록을 조회합니다. 카테고리, 지역, 보전 상태로 필터링할 수 있습니다.",
+    responses={
+        200: {
+            "description": "성공",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "data": {
+                            "items": [
+                                {
+                                    "id": 1,
+                                    "name": "호랑이",
+                                    "scientific_name": "Panthera tigris",
+                                    "category": "동물",
+                                    "region": "아시아",
+                                    "country": "한국",
+                                    "conservation_status": "멸종위기",
+                                    "search_count": 150
+                                }
+                            ],
+                            "total": 100,
+                            "page": 1,
+                            "pages": 5
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
 def get_species(
-    category: Optional[str] = Query(None, description="카테고리 필터"),
+    category: Optional[str] = Query(None, description="카테고리 필터 (동물, 식물, 곤충, 해양생물)"),
     region: Optional[str] = Query(None, description="지역 필터"),
-    country: Optional[str] = Query(None, description="국가 필터"),
-    conservation_status: Optional[str] = Query(None, description="보전 상태 필터"),
-    page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
-    sort_by: Optional[str] = Query("created_at", description="정렬 기준"),
+    country: Optional[str] = Query(None, description="국가 필터 (Korea, Japan, USA, China, Russia)"),
+    conservation_status: Optional[str] = Query(None, description="보전 상태 필터 (멸종위기, 취약, 준위협, 관심대상, 안전)"),
+    page: int = Query(1, ge=1, description="페이지 번호"),
+    limit: int = Query(20, ge=1, le=100, description="페이지당 항목 수"),
+    sort_by: Optional[str] = Query("created_at", description="정렬 기준 (name, search_count, created_at)"),
     sort_order: Optional[str] = Query("desc", description="정렬 순서 (asc/desc)"),
     db: Session = Depends(get_db)
 ):
@@ -78,7 +111,37 @@ def get_species(
         raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
 
 
-@router.get("/random")
+@router.get(
+    "/random",
+    summary="오늘의 랜덤 종",
+    description="오늘의 랜덤 생물종을 조회합니다. 하루 동안 같은 종이 반환되며, 24시간 캐싱됩니다.",
+    responses={
+        200: {
+            "description": "성공",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "data": {
+                            "id": 5,
+                            "name": "반달가슴곰",
+                            "scientific_name": "Ursus thibetanus",
+                            "category": "동물",
+                            "region": "아시아",
+                            "country": "한국",
+                            "description": "한반도에 서식하는 곰으로 가슴에 반달 모양의 흰 무늬가 있습니다.",
+                            "conservation_status": "취약",
+                            "search_count": 89
+                        }
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "등록된 생물종이 없음"
+        }
+    }
+)
 def get_random_species(db: Session = Depends(get_db)):
     """랜덤 생물종 반환 - 날짜 기반 시드로 하루에 같은 결과 (24시간 캐싱)"""
     try:
@@ -156,7 +219,50 @@ def get_popular_species(
         raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
 
 
-@router.get("/{species_id}")
+@router.get(
+    "/{species_id}",
+    summary="종 상세 조회",
+    description="특정 생물종의 상세 정보를 조회합니다. 조회 시 조회수가 자동으로 증가합니다.",
+    responses={
+        200: {
+            "description": "성공",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "data": {
+                            "id": 1,
+                            "name": "호랑이",
+                            "scientific_name": "Panthera tigris",
+                            "category": "동물",
+                            "region": "아시아",
+                            "country": "한국",
+                            "description": "한반도에 서식했던 대형 고양이과 동물입니다.",
+                            "characteristics": {
+                                "habitat": "산림",
+                                "diet": "육식",
+                                "lifespan": "20-25년"
+                            },
+                            "conservation_status": "멸종위기",
+                            "search_count": 151,
+                            "created_at": "2024-01-15T10:30:00Z"
+                        }
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "생물종을 찾을 수 없음",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "생물종을 찾을 수 없습니다"
+                    }
+                }
+            }
+        }
+    }
+)
 def get_species_by_id(species_id: int, db: Session = Depends(get_db)):
     """특정 종 조회 - 조회수 자동 증가"""
     try:
@@ -184,7 +290,38 @@ def get_species_by_id(species_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
 
 
-@router.post("/", status_code=201)
+@router.post(
+    "/",
+    status_code=201,
+    summary="종 등록",
+    description="새로운 생물종을 등록합니다. 관리자 권한이 필요합니다.",
+    responses={
+        201: {
+            "description": "생성 성공",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "data": {
+                            "id": 21,
+                            "name": "수달",
+                            "scientific_name": "Lutra lutra",
+                            "category": "동물",
+                            "region": "유럽/아시아",
+                            "country": "한국",
+                            "conservation_status": "취약",
+                            "search_count": 0
+                        },
+                        "message": "생물종이 성공적으로 등록되었습니다"
+                    }
+                }
+            }
+        },
+        500: {
+            "description": "서버 오류"
+        }
+    }
+)
 def create_species(species_data: SpeciesCreate, db: Session = Depends(get_db)):
     """새 생물종 추가 (관리자용)"""
     try:
