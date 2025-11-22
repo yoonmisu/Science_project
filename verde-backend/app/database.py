@@ -5,8 +5,6 @@ from sqlalchemy.pool import QueuePool
 from app.config import settings
 
 # 최적화된 엔진 설정
-engine = create_engine(
-    settings.database_url_fixed,
     # Connection pooling 최적화
     poolclass=QueuePool,
     pool_pre_ping=True,       # 연결 유효성 검사
@@ -21,7 +19,6 @@ engine = create_engine(
     connect_args={
         "options": "-c statement_timeout=30000"  # 30초 쿼리 타임아웃
     } if "postgresql" in settings.database_url_fixed else {}
-)
 
 
 # 연결 이벤트 핸들러

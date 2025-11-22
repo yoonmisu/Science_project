@@ -14,7 +14,6 @@ from app.models.species import Species
 from app.models.search_query import SearchQuery
 from app.schemas.species import SpeciesResponse
 from app.schemas.search import SearchRequest
-from app.api.response import APIResponse, ErrorCodes
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +44,7 @@ router = APIRouter(prefix="/search", tags=["Search"])
         }
     }
 )
+
 def get_trending_searches(
     limit: int = Query(5, ge=1, le=20, description="조회할 검색어 수"),
     category: Optional[str] = Query(None, description="카테고리 필터")
