@@ -20,10 +20,33 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/search", tags=["Search"])
 
 
-@router.get("/trending")
+@router.get(
+    "/trending",
+    summary="실시간 인기 검색어",
+    description="실시간 인기 검색어 Top N을 조회합니다. Redis Sorted Set을 사용하며, 5분간 캐싱됩니다.",
+    responses={
+        200: {
+            "description": "성공",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "data": [
+                            {"query": "호랑이", "score": 150.0},
+                            {"query": "판다", "score": 120.0},
+                            {"query": "반달가슴곰", "score": 89.0},
+                            {"query": "두루미", "score": 75.0},
+                            {"query": "가시연", "score": 60.0}
+                        ]
+                    }
+                }
+            }
+        }
+    }
+)
 def get_trending_searches(
-    limit: int = Query(5, ge=1, le=20),
-    category: Optional[str] = Query(None)
+    limit: int = Query(5, ge=1, le=20, description="조회할 검색어 수"),
+    category: Optional[str] = Query(None, description="카테고리 필터")
 ):
     """실시간 인기 검색어 Top N - Redis Sorted Set 사용 (5분 캐싱)"""
     try:
@@ -53,11 +76,46 @@ def get_trending_searches(
         raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
 
 
-@router.post("/")
+@router.post(
+    "/",
+    summary="검색 수행",
+    description="생물종을 검색합니다. 검색어는 자동으로 랭킹에 반영됩니다.",
+    responses={
+        200: {
+            "description": "검색 결과",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "data": {
+                            "items": [
+                                {
+                                    "id": 1,
+                                    "name": "호랑이",
+                                    "scientific_name": "Panthera tigris",
+                                    "category": "동물",
+                                    "region": "아시아",
+                                    "country": "한국",
+                                    "conservation_status": "멸종위기"
+                                }
+                            ],
+                            "total": 3,
+                            "page": 1,
+                            "pages": 1,
+                            "query": "호랑이",
+                            "category": None,
+                            "region": None
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
 def search_species(
     search_request: SearchRequest,
-    page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    page: int = Query(1, ge=1, description="페이지 번호"),
+    limit: int = Query(20, ge=1, le=100, description="페이지당 항목 수"),
     db: Session = Depends(get_db)
 ):
     """검색 수행 및 검색어 기록 - Redis Sorted Set으로 랭킹 업데이트"""
@@ -128,7 +186,30 @@ def search_species(
         raise HTTPException(status_code=500, detail="검색 중 오류가 발생했습니다")
 
 
-@router.get("/suggestions")
+@router.get(
+    "/suggestions",
+    summary="검색어 자동완성",
+    description="입력한 검색어에 대한 자동완성 추천을 반환합니다. 최대 10개를 반환합니다.",
+    responses={
+        200: {
+            "description": "자동완성 추천",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "data": {
+                            "suggestions": [
+                                "호랑이",
+                                "호랑나비",
+                                "호랑꽃게"
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+)
 def get_search_suggestions(
     q: str = Query(..., min_length=1, description="검색어"),
     db: Session = Depends(get_db)
