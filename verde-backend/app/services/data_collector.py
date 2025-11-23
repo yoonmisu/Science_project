@@ -34,30 +34,6 @@ TARGET_COUNTRIES = [
 
 
 class DataCollector:
-    """
-    통합 데이터 수집기 - 여러 생물 다양성 API를 통합 관리
-
-    사용자 시나리오:
-    1. 관리자가 "데이터 수집 시작" 버튼 클릭
-    2. 이 서비스가 GBIF, iNaturalist, IUCN에서 데이터를 가져옴
-    3. 중복 체크 및 데이터 변환
-    4. 데이터베이스에 저장
-    5. 지역별 통계 업데이트
-
-    주요 기능:
-    - collect_species_by_country: 국가별 생물종 수집
-    - update_endangered_species: 멸종위기종 정보 업데이트
-    - update_region_statistics: 지역 통계 재계산
-    - collect_all_countries: 모든 대상 국가 일괄 수집
-
-    데이터 흐름:
-    외부 API → DataCollector → 데이터 검증/변환 → Database → 통계 업데이트
-
-    자동화:
-    - 매일 새벽 2시: 생물종 데이터 업데이트
-    - 매주 월요일 새벽 3시: 멸종위기종 업데이트
-    - 매달 1일 새벽 4시: 통계 재계산
-    """
 
     def __init__(self):
         self.gbif = gbif_service

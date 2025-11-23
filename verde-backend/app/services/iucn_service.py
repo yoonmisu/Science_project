@@ -13,34 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class IUCNService:
-    """
-    IUCN Red List API 연동 서비스
-
-    사용자 시나리오:
-    1. 사용자가 "한국의 멸종위기종 현황" 요청
-    2. 이 서비스가 IUCN Red List API에서 공식 평가 데이터 가져옴
-    3. CR(위급), EN(위기), VU(취약) 등급 분류
-    4. 보전 상태 및 위협 요인 정보 제공
-
-    주요 기능:
-    - fetch_endangered_species: 멸종위기종 목록 (CR, EN, VU)
-    - get_species_conservation_status: 종별 상세 보전 정보
-    - get_regional_assessment: 국가별 멸종위기 평가
-    - get_country_species: 국가별 평가된 종 목록
-
-    IUCN 보전 상태 등급:
-    - EX: 멸종 (Extinct)
-    - EW: 야생멸종 (Extinct in the Wild)
-    - CR: 위급 (Critically Endangered) ⚠️
-    - EN: 위기 (Endangered) ⚠️
-    - VU: 취약 (Vulnerable) ⚠️
-    - NT: 준위협 (Near Threatened)
-    - LC: 관심대상 (Least Concern)
-
-    데이터 신뢰성:
-    - 전 세계 생물학자들이 평가한 공식 데이터
-    - 위협 요인, 보전 조치, 서식지 정보 포함
-    """
 
     BASE_URL = "https://apiv3.iucnredlist.org/api/v3"
 

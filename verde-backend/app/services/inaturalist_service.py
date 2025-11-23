@@ -11,28 +11,6 @@ logger = logging.getLogger(__name__)
 
 
 class INaturalistService:
-    """
-    iNaturalist API 연동 서비스
-
-    사용자 시나리오:
-    1. 사용자가 "한국의 인기 생물종 TOP 50" 요청
-    2. 이 서비스가 iNaturalist API에서 관찰 횟수 데이터 가져옴
-    3. 사진이 있는 고품질 관찰 기록만 필터링
-    4. 인기순으로 정렬하여 반환
-
-    주요 기능:
-    - fetch_observations_with_photos: 사진이 있는 관찰 기록
-    - get_popular_species: 인기 생물종 (관찰 횟수 기준)
-    - search_by_common_name: 한글 이름으로 검색
-    - get_taxon_details: 종 상세 정보 및 사진
-    - get_place_statistics: 지역별 생물 다양성 통계
-
-    iNaturalist의 장점:
-    - 고품질 사진 데이터 (시민 과학자들의 관찰 기록)
-    - 한글 이름 지원 (locale=ko)
-    - 실시간 관찰 데이터
-    - Wikipedia 링크 포함
-    """
 
     BASE_URL = "https://api.inaturalist.org/v1"
 
