@@ -456,7 +456,7 @@ class GBIFService:
             "VU": "취약",
             "NT": "준위협",
             "LC": "관심대상",
-            "DD": "정보부족",
+            "DD": None,  # 정보부족 - DB enum에 없어서 None 처리
             "NE": None
         }
 
