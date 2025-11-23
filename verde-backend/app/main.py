@@ -6,15 +6,15 @@ import logging
 
 from app.config import settings
 from app.database import engine, Base, get_db
-from app.routers import species_router, search_router, regions_router, endangered_router
+from app.routers import species_router, search_router, regions_router, endangered_router, auth_router, upload_router, import_router, biodiversity_router, external_router, map_router
 from app.services.species_service import SpeciesService
+from app.services.scheduler_service import scheduler_service
 from app.cache import health_check as redis_health_check, cache_get, cache_set, CacheKeys
+from app.logging_config import setup_logging, RequestLoggingMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
-# 로깅 설정
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+# 구조화된 로깅 설정
+setup_logging()
 logger = logging.getLogger(__name__)
 
 # Create database tables
@@ -25,6 +25,10 @@ tags_metadata = [
     {
         "name": "Health",
         "description": "서버 상태 확인을 위한 헬스 체크 엔드포인트",
+    },
+    {
+        "name": "Authentication",
+        "description": "사용자 인증 API. 회원가입, 로그인, JWT 토큰 관리, API 키 발급을 제공합니다.",
     },
     {
         "name": "Species",
@@ -45,6 +49,26 @@ tags_metadata = [
     {
         "name": "Statistics",
         "description": "전체 생물 다양성 통계를 제공합니다.",
+    },
+    {
+        "name": "Upload",
+        "description": "이미지 업로드 API. S3/MinIO/로컬 스토리지를 지원합니다.",
+    },
+    {
+        "name": "Import",
+        "description": "데이터 임포트 API. CSV/JSON 파일 및 GBIF API를 통한 데이터 임포트를 지원합니다.",
+    },
+    {
+        "name": "Biodiversity",
+        "description": "생물 다양성 API. GBIF, iNaturalist, IUCN Red List API를 통합하여 전 세계 생물 데이터를 제공합니다.",
+    },
+    {
+        "name": "External",
+        "description": "실시간 외부 데이터 API. GBIF, iNaturalist, IUCN API에서 실시간 데이터를 가져와 캐싱하여 제공합니다.",
+    },
+    {
+        "name": "Map",
+        "description": "지도 인터랙션 API. 지오코딩, 공간 검색, 클러스터링, 핫스팟 분석을 제공합니다. PostGIS 기반 공간 쿼리를 지원합니다.",
     },
 ]
 
@@ -104,10 +128,36 @@ app.add_middleware(
 # Include routers with API versioning
 API_V1_PREFIX = "/api/v1"
 
+app.include_router(auth_router, prefix=API_V1_PREFIX)
 app.include_router(species_router, prefix=API_V1_PREFIX)
 app.include_router(search_router, prefix=API_V1_PREFIX)
 app.include_router(regions_router, prefix=API_V1_PREFIX)
 app.include_router(endangered_router, prefix=API_V1_PREFIX)
+app.include_router(upload_router, prefix=API_V1_PREFIX)
+app.include_router(import_router, prefix=API_V1_PREFIX)
+app.include_router(biodiversity_router, prefix=API_V1_PREFIX)
+app.include_router(external_router, prefix=API_V1_PREFIX)
+app.include_router(map_router, prefix=API_V1_PREFIX)
+
+# Prometheus 메트릭 설정
+Instrumentator().instrument(app).expose(app, endpoint="/metrics")
+
+
+# 애플리케이션 이벤트
+@app.on_event("startup")
+async def startup_event():
+    """애플리케이션 시작 시 실행"""
+    logger.info("Starting Verde API...")
+    scheduler_service.start()
+    logger.info("Verde API started successfully")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """애플리케이션 종료 시 실행"""
+    logger.info("Shutting down Verde API...")
+    scheduler_service.shutdown()
+    logger.info("Verde API shutdown complete")
 
 
 @app.get(

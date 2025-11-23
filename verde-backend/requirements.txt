@@ -2,6 +2,7 @@ fastapi==0.115.0
 uvicorn[standard]==0.24.0
 sqlalchemy==2.0.36
 psycopg2-binary==2.9.10
+geoalchemy2==0.14.2
 alembic==1.12.1
 python-dotenv==1.0.0
 pydantic==2.10.0
@@ -10,6 +11,18 @@ redis==5.0.1
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 httpx==0.25.2
+
+# File Upload & Image Processing
+python-multipart==0.0.6
+pillow==10.1.0
+boto3==1.33.0
+minio==7.2.0
+
+# Scheduling
+apscheduler==3.10.4
+
+# Monitoring
+prometheus-fastapi-instrumentator==6.1.0
 
 # Testing
 pytest==7.4.3

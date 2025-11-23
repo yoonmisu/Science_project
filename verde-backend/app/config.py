@@ -23,6 +23,25 @@ class Settings(BaseSettings):
     APP_NAME: str = "Verde API"
     APP_VERSION: str = "1.0.0"
 
+    # Storage
+    STORAGE_TYPE: str = "local"  # local, s3, minio
+    STORAGE_BUCKET: str = "verde-images"
+    LOCAL_STORAGE_PATH: str = "./uploads"
+
+    # AWS S3
+    AWS_ACCESS_KEY_ID: str = ""
+    AWS_SECRET_ACCESS_KEY: str = ""
+    AWS_REGION: str = "ap-northeast-2"
+
+    # MinIO
+    MINIO_ENDPOINT: str = "localhost:9000"
+    MINIO_ACCESS_KEY: str = "minioadmin"
+    MINIO_SECRET_KEY: str = "minioadmin"
+    MINIO_SECURE: bool = False
+
+    # External APIs
+    IUCN_API_KEY: str = ""  # IUCN Red List API key
+
     @property
     def cors_origins_list(self) -> List[str]:
         """CORS origins 파싱 - JSON 배열 또는 쉼표 구분 문자열 지원"""
