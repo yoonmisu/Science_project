@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class GBIFService:
+    """GBIF API 클라이언트"""
 
     BASE_URL = "https://api.gbif.org/v1"
 
@@ -37,9 +38,13 @@ class GBIFService:
         taxon_key: Optional[int] = None
     ) -> List[Dict]:
         """
+        국가 코드로 생물종 검색
 
         Args:
             country_code: ISO 국가 코드 (예: 'KR', 'US', 'JP')
+            limit: 결과 수 제한
+            offset: 페이지 오프셋
+            taxon_key: 특정 분류군 필터
 
         Returns:
             Species 모델 형식의 데이터 리스트
@@ -451,6 +456,7 @@ class GBIFService:
             "VU": "취약",
             "NT": "준위협",
             "LC": "관심대상",
+            "DD": "정보부족",
             "NE": None
         }
 
