@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Enum, JSON, Index
+from sqlalchemy import Column, Integer, String, Text, DateTime, Enum, JSON, Index, Float
 from sqlalchemy.sql import func
+from geoalchemy2 import Geography
 import enum
 from app.database import Base
 
@@ -56,6 +57,15 @@ class Species(Base):
     )
 
     search_count = Column(Integer, default=0, nullable=False, comment="조회수")
+
+    # 공간 데이터 컬럼
+    latitude = Column(Float, nullable=True, comment="위도")
+    longitude = Column(Float, nullable=True, comment="경도")
+    location = Column(
+        Geography(geometry_type='POINT', srid=4326),
+        nullable=True,
+        comment="공간 좌표 (PostGIS)"
+    )
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
