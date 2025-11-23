@@ -8,6 +8,7 @@ from app.routers.import_data import router as import_router
 from app.routers.biodiversity import router as biodiversity_router
 from app.routers.external import router as external_router
 from app.routers.map import router as map_router
+from app.routers.admin import router as admin_router
 
 __all__ = [
     "species_router",
@@ -19,5 +20,6 @@ __all__ = [
     "import_router",
     "biodiversity_router",
     "external_router",
-    "map_router"
+    "map_router",
+    "admin_router"
 ]
