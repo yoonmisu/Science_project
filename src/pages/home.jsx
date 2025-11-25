@@ -3,7 +3,6 @@ import { X, ChevronRight } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 import mapImg from '../assets/map.png';
 
-// category color
 const categoryThemes = {
   식물: {
     bg: 'bg-white',
@@ -35,24 +34,32 @@ const categoryThemes = {
   }
 };
 
-// sample data
 const countryData = {
   korea: {
     name: '대한민국',
     식물: [
       { id: 1, name: '무궁화', image: '🌺', color: 'purple' },
       { id: 2, name: '코스모스', image: '🌸', color: 'orange' },
-      { id: 3, name: '벚꽃', image: '🌸', color: 'pink' }
+      { id: 3, name: '벚꽃', image: '🌸', color: 'pink' },
+      { id: 4, name: '진달래', image: '🌷', color: 'red' },
+      { id: 5, name: '소나무', image: '🌲', color: 'green' },
+      { id: 6, name: '난초', image: '🌱', color: 'white' }
     ],
     동물: [
       { id: 1, name: '호랑이', image: '🐯', color: 'orange' },
       { id: 2, name: '까치', image: '🐦', color: 'black' },
-      { id: 3, name: '노루', image: '🦌', color: 'brown' }
+      { id: 3, name: '노루', image: '🦌', color: 'brown' },
+      { id: 4, name: '곰', image: '🐻', color: 'brown' },
+      { id: 5, name: '토끼', image: '🐇', color: 'white' },
+      { id: 6, name: '늑대', image: '🐺', color: 'gray' }
     ],
     곤충: [
       { id: 1, name: '무당벌레', image: '🐞', color: 'red' },
       { id: 2, name: '나비', image: '🦋', color: 'blue' },
-      { id: 3, name: '잠자리', image: '🦟', color: 'green' }
+      { id: 3, name: '잠자리', image: '🦟', color: 'green' },
+      { id: 4, name: '장수풍뎅이', image: '🪲', color: 'black' },
+      { id: 5, name: '개미', image: '🐜', color: 'black' },
+      { id: 6, name: '벌', image: '🐝', color: 'yellow' }
     ],
     해양생물: [
       { id: 1, name: '명태', image: '🐟', color: 'silver' },
@@ -65,12 +72,14 @@ const countryData = {
     식물: [
       { id: 1, name: '벚꽃', image: '🌸', color: 'pink' },
       { id: 2, name: '국화', image: '🌼', color: 'yellow' },
-      { id: 3, name: '매화', image: '🌺', color: 'white' }
+      { id: 3, name: '매화', image: '🌺', color: 'white' },
+      { id: 4, name: '단풍', image: '🍁', color: 'red' }
     ],
     동물: [
       { id: 1, name: '원숭이', image: '🐵', color: 'brown' },
       { id: 2, name: '사슴', image: '🦌', color: 'brown' },
-      { id: 3, name: '두루미', image: '🦢', color: 'white' }
+      { id: 3, name: '두루미', image: '🦢', color: 'white' },
+      { id: 4, name: '너구리', image: '🦝', color: 'brown' }
     ],
     곤충: [
       { id: 1, name: '사슴벌레', image: '🪲', color: 'black' },
@@ -109,48 +118,48 @@ const countryData = {
   china: {
     name: '중국',
     식물: [
-      { id: 1, name: '무궁화', image: '🌺', color: 'purple' },
-      { id: 2, name: '코스모스', image: '🌸', color: 'orange' },
-      { id: 3, name: '벚꽃', image: '🌸', color: 'pink' }
+      { id: 1, name: '대나무', image: '🎋', color: 'green' },
+      { id: 2, name: '모란', image: '🏵️', color: 'pink' },
+      { id: 3, name: '연꽃', image: '🪷', color: 'white' }
     ],
     동물: [
-      { id: 1, name: '호랑이', image: '🐯', color: 'orange' },
-      { id: 2, name: '까치', image: '🐦', color: 'black' },
-      { id: 3, name: '노루', image: '🦌', color: 'brown' }
+      { id: 1, name: '판다', image: '🐼', color: 'black/white' },
+      { id: 2, name: '호랑이', image: '🐯', color: 'orange' },
+      { id: 3, name: '붉은털원숭이', image: '🐒', color: 'brown' }
     ],
     곤충: [
-      { id: 1, name: '무당벌레', image: '🐞', color: 'red' },
-      { id: 2, name: '나비', image: '🦋', color: 'blue' },
-      { id: 3, name: '잠자리', image: '🦟', color: 'green' }
+      { id: 1, name: '비단벌레', image: '💎', color: 'green' },
+      { id: 2, name: '나방', image: ' moth ', color: 'brown' },
+      { id: 3, name: '매미', image: '🦗', color: 'green' }
     ],
     해양생물: [
-      { id: 1, name: '명태', image: '🐟', color: 'silver' },
-      { id: 2, name: '해파리', image: '🪼', color: 'transparent' },
-      { id: 3, name: '문어', image: '🐙', color: 'red' }
+      { id: 1, name: '민물돌고래', image: '🐬', color: 'white' },
+      { id: 2, name: '상어', image: '🦈', color: 'gray' },
+      { id: 3, name: '거북이', image: '🐢', color: 'green' }
     ]
   },
   
   russia: {
     name: '러시아',
     식물: [
-      { id: 1, name: '무궁화', image: '🌺', color: 'purple' },
-      { id: 2, name: '코스모스', image: '🌸', color: 'orange' },
-      { id: 3, name: '벚꽃', image: '🌸', color: 'pink' }
+      { id: 1, name: '자작나무', image: '🌲', color: 'white/black' },
+      { id: 2, name: '카모마일', image: '🌼', color: 'white' },
+      { id: 3, name: '라일락', image: '🌸', color: 'purple' }
     ],
     동물: [
-      { id: 1, name: '호랑이', image: '🐯', color: 'orange' },
-      { id: 2, name: '까치', image: '🐦', color: 'black' },
-      { id: 3, name: '노루', image: '🦌', color: 'brown' }
+      { id: 1, name: '시베리아호랑이', image: '🐅', color: 'orange' },
+      { id: 2, name: '불곰', image: '🐻', color: 'brown' },
+      { id: 3, name: '늑대', image: '🐺', color: 'gray' }
     ],
     곤충: [
-      { id: 1, name: '무당벌레', image: '🐞', color: 'red' },
-      { id: 2, name: '나비', image: '🦋', color: 'blue' },
-      { id: 3, name: '잠자리', image: '🦟', color: 'green' }
+      { id: 1, name: '모기', image: '🦟', color: 'black' },
+      { id: 2, name: '꿀벌', image: '🐝', color: 'yellow' },
+      { id: 3, name: '나비', image: '🦋', color: 'colorful' }
     ],
     해양생물: [
-      { id: 1, name: '명태', image: '🐟', color: 'silver' },
-      { id: 2, name: '해파리', image: '🪼', color: 'transparent' },
-      { id: 3, name: '문어', image: '🐙', color: 'red' }
+      { id: 1, name: '벨루가', image: '🐳', color: 'white' },
+      { id: 2, name: '바다표범', image: '🦭', color: 'gray' },
+      { id: 3, name: '연어', image: '🐟', color: 'pink' }
     ]
   }
 };
@@ -159,6 +168,10 @@ const HomePage = () => {
   const [category, setCategory] = useState('동물');
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [hoveredCountry, setHoveredCountry] = useState(null); 
+  
+  const [modalView, setModalView] = useState('species'); 
+  const [speciesPage, setSpeciesPage] = useState(0); 
 
   const categories = ['동물', '식물', '곤충', '해양생물'];
   const categoryIcons = {
@@ -180,6 +193,8 @@ const HomePage = () => {
 
   const handleCountryClick = (countryId) => {
     setSelectedCountry(countryId);
+    setSpeciesPage(0);
+    setModalView('species');
     setIsModalOpen(true);
   };
 
@@ -187,19 +202,40 @@ const HomePage = () => {
     setIsModalOpen(false);
     setSelectedCountry(null);
   };
-
+  
+  const goToEndangeredView = () => {
+    setModalView('endangered');
+  };
+  
   const theme = categoryThemes[category];
   const currentData = selectedCountry ? countryData[selectedCountry] : null;
+  const itemsPerPage = 3;
+  const totalSpeciesItems = currentData ? currentData[category]?.length || 0 : 0;
+  const totalSpeciesPages = Math.ceil(totalSpeciesItems / itemsPerPage);
+  
+  const currentSpeciesData = currentData 
+    ? currentData[category]?.slice(speciesPage * itemsPerPage, speciesPage * itemsPerPage + itemsPerPage)
+    : [];
+  const handleNextPage = () => {
+    if (speciesPage < totalSpeciesPages - 1) {
+      setSpeciesPage((prev) => prev + 1);
+    } 
+  };
+
+  const handlePrevPage = () => {
+    if (speciesPage > 0) {
+      setSpeciesPage((prev) => prev - 1);
+    } 
+  };
 
   return (
-    <div style={{ 
+    <div style={{
       backgroundColor: '#ffffff', 
       minHeight: '100vh', 
       fontFamily: 'Pretendard, sans-serif',
       color: '#2e3d2f',
       padding: '0 50px'
     }}>
-      {/* Header */}
       <div style={{ padding: '20px 0' }}>
         <div style={{ 
           display: 'flex', 
@@ -210,10 +246,10 @@ const HomePage = () => {
           <div style={{ position: 'relative' }}>
             <input
               type="text"
-              placeholder="Search ..."
+              placeholder="나라이름과 카테고리명을 꼭 넣어서 검색해요..."
               style={{
                 width: '320px',
-                padding: '10px 40px 10px 20px',
+                padding: '12px 40px 12px 20px',
                 border: '1px solid #d0d0d0',
                 borderRadius: '25px',
                 fontSize: '14px',
@@ -233,7 +269,6 @@ const HomePage = () => {
         </div>
       </div>
 
-      {/* Main Content */}
       <div style={{
         backgroundColor: '#f5faf5',
         borderRadius: '40px',
@@ -242,9 +277,7 @@ const HomePage = () => {
         display: 'flex',
         gap: '68px'
       }}>
-        {/* Left Section */}
         <div style={{ flex: 1 }}>
-          {/* Category Section */}
           <div style={{ marginBottom: '30px' }}>
             <h2 style={{ 
               color: '#2f6b2d', 
@@ -280,7 +313,6 @@ const HomePage = () => {
             </div>
           </div>
 
-          {/* Map Section */}
           <div>
             <h2 style={{ 
               color: '#2f6b2d', 
@@ -304,31 +336,14 @@ const HomePage = () => {
               position: 'relative',
               height: '450px'
             }}>
-              {/* 여기에 지도 이미지가 들어갈 부분 */}
               <img src={mapImg} alt="세계지도" style={{ width: '800px', height: '460px' }}/>
-                {/* 클릭 가능한 국가 버튼들 */}
                 <button
                   onClick={() => handleCountryClick('korea')}
+                  onMouseEnter={() => setHoveredCountry('korea')}
+                  onMouseLeave={() => setHoveredCountry(null)}
                   style={{
-                    position: 'absolute',
-                    top: '45%',
-                    right: '28%',
-                    width: '50px',
-                    height: '50px',
-                    borderRadius: '50%',
-                    border: 'none',
-                    backgroundColor: 'transparent',
-                    color: 'white',
-                    fontSize: '24px',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-                    transition: 'transform 0.2s',
-                    display: 'flex',              // 추가
-                    alignItems: 'center',         // 추가
-                    justifyContent: 'center'      // 추가
+                    position: 'absolute', top: '45%', right: '28%', width: '50px', height: '50px', borderRadius: '50%', border: 'none', backgroundColor: 'transparent', color: 'white', fontSize: '24px', cursor: 'pointer', boxShadow: '0 4px 8px rgba(0,0,0,0.2)', transition: 'opacity 0.3s', opacity: hoveredCountry === 'korea' ? 1 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center'      
                   }}
-                  onMouseEnter={(e) => e.target.style.transform = 'scale(1.1)'}
-                  onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
                   title="대한민국"
                 >
                 🇰🇷
@@ -336,26 +351,11 @@ const HomePage = () => {
 
                 <button
                   onClick={() => handleCountryClick('japan')}
+                  onMouseEnter={() => setHoveredCountry('japan')}
+                  onMouseLeave={() => setHoveredCountry(null)}
                   style={{
-                    position: 'absolute',
-                    top: '45%',
-                    right: '25%',
-                    width: '45px',
-                    height: '45px',
-                    borderRadius: '50%',
-                    border: 'none',
-                    backgroundColor: 'transparent',
-                    color: 'white',
-                    fontSize: '22px',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-                    transition: 'transform 0.2s',
-                    display: 'flex',              // 추가
-                    alignItems: 'center',         // 추가
-                    justifyContent: 'center'      // 추가
+                    position: 'absolute', top: '45%', right: '25%', width: '45px', height: '45px', borderRadius: '50%', border: 'none', backgroundColor: 'transparent', color: 'white', fontSize: '22px', cursor: 'pointer', boxShadow: '0 4px 8px rgba(0,0,0,0.2)', transition: 'opacity 0.3s', opacity: hoveredCountry === 'japan' ? 1 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center'      
                   }}
-                  onMouseEnter={(e) => e.target.style.transform = 'scale(1.1)'}
-                  onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
                   title="일본"
                 >
                   🇯🇵
@@ -363,26 +363,11 @@ const HomePage = () => {
 
                 <button
                   onClick={() => handleCountryClick('usa')}
+                  onMouseEnter={() => setHoveredCountry('usa')}
+                  onMouseLeave={() => setHoveredCountry(null)}
                   style={{
-                    position: 'absolute',
-                    top: '40%',
-                    left: '20%',
-                    width: '60px',
-                    height: '60px',
-                    borderRadius: '50%',
-                    border: 'none',
-                    backgroundColor: 'transparent',
-                    color: 'white',
-                    fontSize: '28px',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-                    transition: 'transform 0.2s',
-                    display: 'flex',              // 추가
-                    alignItems: 'center',         // 추가
-                    justifyContent: 'center'      // 추가
+                    position: 'absolute', top: '40%', left: '20%', width: '60px', height: '60px', borderRadius: '50%', border: 'none', backgroundColor: 'transparent', color: 'white', fontSize: '28px', cursor: 'pointer', boxShadow: '0 4px 8px rgba(0,0,0,0.2)', transition: 'opacity 0.3s', opacity: hoveredCountry === 'usa' ? 1 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center'      
                   }}
-                  onMouseEnter={(e) => e.target.style.transform = 'scale(1.1)'}
-                  onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
                   title="미국"
                 >
                   🇺🇸
@@ -390,26 +375,11 @@ const HomePage = () => {
 
                 <button
                   onClick={() => handleCountryClick('china')}
+                  onMouseEnter={() => setHoveredCountry('china')}
+                  onMouseLeave={() => setHoveredCountry(null)}
                   style={{
-                    position: 'absolute',
-                    top: '43%',
-                    right: '35%',
-                    width: '50px',
-                    height: '50px',
-                    borderRadius: '50%',
-                    border: 'none',
-                    backgroundColor: 'transparent',
-                    color: 'white',
-                    fontSize: '24px',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-                    transition: 'transform 0.2s',
-                    display: 'flex',              // 추가
-                    alignItems: 'center',         // 추가
-                    justifyContent: 'center'      // 추가
+                    position: 'absolute', top: '43%', right: '35%', width: '50px', height: '50px', borderRadius: '50%', border: 'none', backgroundColor: 'transparent', color: 'white', fontSize: '24px', cursor: 'pointer', boxShadow: '0 4px 8px rgba(0,0,0,0.2)', transition: 'opacity 0.3s', opacity: hoveredCountry === 'china' ? 1 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center'      
                   }}
-                  onMouseEnter={(e) => e.target.style.transform = 'scale(1.1)'}
-                  onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
                   title="중국"
                 >
                   🇨🇳
@@ -417,26 +387,11 @@ const HomePage = () => {
 
                 <button
                   onClick={() => handleCountryClick('russia')}
+                  onMouseEnter={() => setHoveredCountry('russia')}
+                  onMouseLeave={() => setHoveredCountry(null)}
                   style={{
-                    position: 'absolute',
-                    top: '30%',
-                    left: '60%',
-                    width: '60px',
-                    height: '60px',
-                    borderRadius: '50%',
-                    border: 'none',
-                    backgroundColor: 'transparent',
-                    color: 'white',
-                    fontSize: '28px',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-                    transition: 'transform 0.2s',
-                    display: 'flex',              // 추가
-                    alignItems: 'center',         // 추가
-                    justifyContent: 'center'      // 추가
+                    position: 'absolute', top: '30%', left: '60%', width: '60px', height: '60px', borderRadius: '50%', border: 'none', backgroundColor: 'transparent', color: 'white', fontSize: '28px', cursor: 'pointer', boxShadow: '0 4px 8px rgba(0,0,0,0.2)', transition: 'opacity 0.3s', opacity: hoveredCountry === 'russia' ? 1 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center'      
                   }}
-                  onMouseEnter={(e) => e.target.style.transform = 'scale(1.1)'}
-                  onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
                   title="러시아"
                 >
                 🇷🇺
@@ -452,11 +407,10 @@ const HomePage = () => {
           </div>
         </div>
 
-        {/* Right Section */}
         <div style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: '16px',  // 24px에서 16px로 줄임
+          gap: '16px',
           minWidth: '400px'
         }}>
           <div style={{
@@ -473,6 +427,7 @@ const HomePage = () => {
             justifyContent: 'center',
             alignItems: 'center'
           }}
+          
           onClick={() => {/* 모달 열기 로직 추가 필요 */}}
           onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(150, 180, 150, 0.25)'}
           onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(150, 180, 150, 0.15)'}
@@ -525,16 +480,16 @@ const HomePage = () => {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '12px',
-                    padding: '8px 16px',  // 12px에서 8px로 줄임
+                    padding: '8px 16px',
                     borderBottom: index !== searches.length - 1 ? '1px solid #edf3ed' : 'none',
-                    fontSize: '16px'  // 18px에서 16px로 줄임
+                    fontSize: '16px'
                   }}
                 >
                   <span style={{
                     fontWeight: '700',
                     color: '#4c944a',
                     minWidth: '28px',
-                    padding: '8px'  // 10px에서 6px로 줄임
+                    padding: '8px'
                   }}>
                     {String(index + 1).padStart(2, '0')}
                   </span>
@@ -546,7 +501,6 @@ const HomePage = () => {
         </div>
       </div>
 
-      {/* Modal */}
       {isModalOpen && currentData && (
         <div style={{
           position: 'fixed',
@@ -571,7 +525,6 @@ const HomePage = () => {
                         theme.border === 'border-amber-200' ? '#D8CFBD' :
                         theme.border === 'border-yellow-200' ? '#FFECB2' : '#CCE0F3'
           }}>
-            {/* Close Button */}
             <button
               onClick={closeModal}
               style={{
@@ -594,7 +547,6 @@ const HomePage = () => {
               <X style={{ width: '24px', height: '24px' }} />
             </button>
 
-            {/* Modal Header */}
             <div style={{ marginBottom: '24px' }}>
               <h2 className={theme.title} style={{
               fontSize: '24px',
@@ -608,113 +560,182 @@ const HomePage = () => {
               <span style={{ fontSize: '32px' }}>{theme.icon}</span>
               {currentData.name}의 생물 다양성 - {category}
               </h2>
-              <button className={theme.button} style={{
-                padding: '10px 20px',
-                borderRadius: '20px',
-                border: 'none',
-                fontSize: '14px',
-                fontWeight: '500',
-                cursor: 'pointer',
-                backgroundColor: theme.button === 'bg-green-100 hover:bg-green-200' ? '#bbf7d0' :
-                                theme.button === 'bg-amber-100 hover:bg-amber-200' ? '#D8CFBD' :
-                                theme.button === 'bg-yellow-100 hover:bg-yellow-200' ? '#FFECB2' : '#CCE0F3',
-                transition: 'background 0.2s'
-              }}>
+              <button 
+                className={theme.button}
+                onClick={goToEndangeredView}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '20px',
+                  border: 'none',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  backgroundColor: theme.button.includes('green') ? '#bbf7d0' :
+                                  theme.button.includes('amber') ? '#D8CFBD' :
+                                  theme.button.includes('yellow') ? '#FFECB2' : '#CCE0F3',
+                  transition: 'background 0.2s'
+                }}>
                 멸종위기 종류 보기
               </button>
             </div>
-
-            {/* Species Grid */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '16px',
-              marginBottom: '24px'
-            }}>
-              {currentData[category]?.map((species) => (
-                <div
-                  key={species.id}
-                  style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: '16px',
-                    overflow: 'hidden',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'scale(1.05)';
-                    e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.15)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(87, 87, 87, 0.1)';
-                  }}
-                >
-                  <div style={{
-                    height: '140px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '64px',
-                    background: 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)'
-                  }}>
-                    {species.image}
-                  </div>
-                  <div style={{ padding: '12px', textAlign: 'center' }}>
-                    <p style={{ fontWeight: '500', color: '#1f2937' }}>{species.name}</p>
-                  </div>
+            {modalView === 'species' && (
+              <>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: '16px',
+                  marginBottom: '24px'
+                }}>
+                  {currentSpeciesData.map((species) => (
+                    <div
+                      key={species.id}
+                      style={{
+                        backgroundColor: '#ffffff',
+                        borderRadius: '16px',
+                        overflow: 'hidden',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                        e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.15)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(87, 87, 87, 0.1)';
+                      }}
+                    >
+                      <div style={{
+                        height: '140px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '64px',
+                        background: 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)'
+                      }}>
+                        {species.image}
+                      </div>
+                      <div style={{ padding: '12px', textAlign: 'center' }}>
+                        <p style={{ fontWeight: '500', color: '#1f2937' }}>{species.name}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}> 
+                  {speciesPage > 0 ? (
+                    <button 
+                      className={theme.button} 
+                      onClick={handlePrevPage}
+                      style={{
+                        padding: '10px 24px',
+                        borderRadius: '20px',
+                        border: 'none',
+                        fontSize: '16px',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        backgroundColor: 'transparent',
+                        transition: 'background 0.2s',
+                        color: '#555' 
+                      }}>
+                      <ChevronRight style={{ width: '16px', height: '16px', transform: 'rotate(180deg)' }} />
+                      이전으로
+                    </button>
+                  ) : (
+                    <div style={{ minWidth: '100px', height: '16px' }}></div> 
+                  )}
+                  {speciesPage < totalSpeciesPages - 1 ? (
+                    <button 
+                      className={theme.button} 
+                      onClick={handleNextPage}
+                      style={{
+                        padding: '10px 24px',
+                        borderRadius: '20px',
+                        border: 'none',
+                        fontSize: '16px',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        backgroundColor: 'transparent',
+                        transition: 'background 0.2s'
+                      }}>
+                      다음으로
+                      <ChevronRight style={{ width: '16px', height: '16px' }} />
+                    </button>
+                  ) : (
+                    <div style={{ minWidth: '100px', height: '16px' }}></div>
+                  )}
 
-            {/* Next Button */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className={theme.button} style={{
-                padding: '10px 24px',
-                borderRadius: '20px',
-                border: 'none',
-                fontSize: '16px',
-                fontWeight: '500',
-                cursor: 'pointer',
+                </div>
+              </>
+            )}
+            {modalView === 'endangered' && (
+              <div style={{ 
+                padding: '40px', 
+                textAlign: 'center', 
+                minHeight: '300px',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                gap: '8px',
-                backgroundColor: 'transparent',
-                transition: 'background 0.2s'
+                justifyContent: 'center',
+                backgroundColor: '#fefcfa',
+                borderRadius: '15px'
               }}>
-                Next
-                <ChevronRight style={{ width: '16px', height: '16px' }} />
-              </button>
-            </div>
-
-            {/* Bottom Indicator */}
+                <h3 style={{
+                  color: '#747F60', 
+                  fontSize: '20px', 
+                  marginBottom: '15px'
+                }}>
+                  {currentData.name}의 멸종 위기종 목록
+                </h3>
+                <p style={{ color: '#666', marginBottom: '25px' }}>
+                  이 섹션에서는 해당 국가의 멸종 위기종에 대한 상세 정보를 제공할 예정입니다.
+                </p>
+                <button
+                  onClick={() => setModalView('species')}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '20px',
+                    border: '1px solid #ccc',
+                    backgroundColor: '#fff',
+                    cursor: 'pointer',
+                    fontSize: '15px',
+                    fontWeight: '500',
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#f0f0f0'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#fff'}
+                >
+                  생물 다양성 목록으로 돌아가기
+                </button>
+              </div>
+            )}
             <div style={{
               display: 'flex',
               justifyContent: 'center',
               gap: '8px',
               marginTop: '16px'
             }}>
-              <div style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                backgroundColor: theme.button === 'bg-green-100 hover:bg-green-200' ? '#bbf7d0' :
-                                theme.button === 'bg-amber-100 hover:bg-amber-200' ? '#D8CFBD' :
-                                theme.button === 'bg-yellow-100 hover:bg-yellow-200' ? '#FFECB2' : '#CCE0F3'
-              }}></div>
-              <div style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                backgroundColor: '#d1d5db'
-              }}></div>
-              <div style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                backgroundColor: '#d1d5db'
-              }}></div>
+              {Array.from({ length: totalSpeciesPages }).map((_, index) => (
+                <div 
+                  key={index}
+                  style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    backgroundColor: speciesPage === index ? 
+                                    (theme.button.includes('green') ? '#bbf7d0' :
+                                    theme.button.includes('amber') ? '#D8CFBD' :
+                                    theme.button.includes('yellow') ? '#FFECB2' : '#CCE0F3')
+                                    : '#d1d5db'
+                  }}
+                ></div>
+              ))}
             </div>
           </div>
         </div>
