@@ -1,16 +1,20 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from sqlalchemy.orm import Session
+from datetime import datetime
 import logging
+import json
 
 from app.config import settings
 from app.database import engine, Base, get_db
 from app.routers import species_router, search_router, regions_router, endangered_router, auth_router, upload_router, import_router, biodiversity_router, external_router, map_router, admin_router
+from app.routers.frontend import router as frontend_router
 from app.services.species_service import SpeciesService
 from app.services.scheduler_service import scheduler_service
 from app.cache import health_check as redis_health_check, cache_get, cache_set, CacheKeys
 from app.logging_config import setup_logging, RequestLoggingMiddleware
+from app.api.websocket import manager as ws_manager, periodic_trending_updates
 from prometheus_fastapi_instrumentator import Instrumentator
 
 # 구조화된 로깅 설정
@@ -120,13 +124,22 @@ app = FastAPI(
     },
 )
 
-# CORS middleware
+# CORS middleware - 프론트엔드 친화적 설정
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=[
+        "X-Total-Count",      # 전체 아이템 수
+        "X-Page",             # 현재 페이지
+        "X-Per-Page",         # 페이지당 아이템 수
+        "X-Total-Pages",      # 전체 페이지 수
+        "X-Has-Next",         # 다음 페이지 존재 여부
+        "X-Has-Prev",         # 이전 페이지 존재 여부
+        "X-Cursor",           # 무한 스크롤용 커서
+    ]
 )
 
 # Include routers with API versioning
@@ -143,6 +156,7 @@ app.include_router(biodiversity_router, prefix=API_V1_PREFIX)
 app.include_router(external_router, prefix=API_V1_PREFIX)
 app.include_router(map_router, prefix=API_V1_PREFIX)
 app.include_router(admin_router, prefix=API_V1_PREFIX)
+app.include_router(frontend_router, prefix=API_V1_PREFIX)  # 프론트엔드 친화적 API
 
 # Prometheus 메트릭 설정
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
@@ -154,6 +168,11 @@ async def startup_event():
     """애플리케이션 시작 시 실행"""
     logger.info("Starting Verde API...")
     scheduler_service.start()
+
+    # WebSocket 주기적 업데이트 시작 (백그라운드)
+    import asyncio
+    asyncio.create_task(periodic_trending_updates())
+
     logger.info("Verde API started successfully")
 
 
@@ -326,6 +345,103 @@ def get_global_stats(db: Session = Depends(get_db)):
             "success": False,
             "error": "서버 오류가 발생했습니다"
         }
+
+
+# =========================================================================
+# WebSocket 엔드포인트
+# =========================================================================
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """
+    WebSocket 실시간 통신 엔드포인트
+
+    프론트엔드 사용 예시:
+    ```javascript
+    const ws = new WebSocket('ws://localhost:8000/ws');
+
+    ws.onopen = () => {
+        // 채널 구독
+        ws.send(JSON.stringify({
+            action: 'subscribe',
+            channels: ['trending', 'species_updates']
+        }));
+    };
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log('Received:', data);
+
+        if (data.type === 'trending_update') {
+            // 실시간 검색어 순위 업데이트
+            updateTrendingList(data.data);
+        }
+    };
+    ```
+
+    지원 채널:
+    - trending: 실시간 검색어 순위 (30초마다)
+    - species_updates: 새로운 생물종 추가 알림
+    - stats: 통계 업데이트
+    - notifications: 일반 알림
+    """
+    await ws_manager.connect(websocket)
+
+    try:
+        while True:
+            # 클라이언트로부터 메시지 수신
+            data = await websocket.receive_text()
+
+            try:
+                message = json.loads(data)
+                action = message.get("action")
+
+                if action == "subscribe":
+                    # 채널 구독
+                    channels = message.get("channels", [])
+                    for channel in channels:
+                        await ws_manager.subscribe(websocket, channel)
+
+                elif action == "unsubscribe":
+                    # 채널 구독 해제
+                    channels = message.get("channels", [])
+                    for channel in channels:
+                        await ws_manager.unsubscribe(websocket, channel)
+
+                elif action == "ping":
+                    # Ping-Pong (연결 유지)
+                    await websocket.send_json({
+                        "type": "pong",
+                        "timestamp": datetime.utcnow().isoformat() + "Z"
+                    })
+
+                else:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": f"Unknown action: {action}"
+                    })
+
+            except json.JSONDecodeError:
+                await websocket.send_json({
+                    "type": "error",
+                    "message": "Invalid JSON format"
+                })
+
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket)
+        logger.info("WebSocket client disconnected")
+
+    except Exception as e:
+        logger.error(f"WebSocket error: {str(e)}")
+        ws_manager.disconnect(websocket)
+
+
+@app.get("/ws/stats")
+async def websocket_stats():
+    """WebSocket 연결 통계"""
+    return {
+        "success": True,
+        "data": ws_manager.get_stats()
+    }
 
 
 if __name__ == "__main__":
