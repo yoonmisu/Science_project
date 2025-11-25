@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class INaturalistService:
+    """iNaturalist API 클라이언트"""
 
     BASE_URL = "https://api.inaturalist.org/v1"
 

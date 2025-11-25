@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class IUCNService:
+    """IUCN Red List API 클라이언트"""
 
     BASE_URL = "https://apiv3.iucnredlist.org/api/v3"
 

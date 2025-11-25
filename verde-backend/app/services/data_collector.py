@@ -34,6 +34,7 @@ TARGET_COUNTRIES = [
 
 
 class DataCollector:
+    """통합 데이터 수집기"""
 
     def __init__(self):
         self.gbif = gbif_service

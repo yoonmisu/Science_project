@@ -75,6 +75,7 @@ KOREAN_NAME_DICTIONARY = {
 
 
 class DataEnricher:
+    """데이터 보강 서비스"""
 
     def __init__(self, db: Session):
         self.db = db

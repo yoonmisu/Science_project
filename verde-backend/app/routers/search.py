@@ -14,6 +14,7 @@ from app.models.species import Species
 from app.models.search_query import SearchQuery
 from app.schemas.species import SpeciesResponse
 from app.schemas.search import SearchRequest
+from app.api.response import APIResponse, ErrorCodes
 
 logger = logging.getLogger(__name__)
 
