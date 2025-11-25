@@ -9,6 +9,8 @@ from app.models.species import Species
 from app.models.region_biodiversity import RegionBiodiversity
 from app.schemas.region import RegionBiodiversityResponse, RegionBiodiversityCreate
 from app.schemas.species import SpeciesResponse
+from app.api.response import APIResponse, ErrorCodes
+from app.utils.heatmap import calculate_country_heatmap_data, get_heatmap_legend
 
 logger = logging.getLogger(__name__)
 
@@ -17,24 +19,52 @@ router = APIRouter(prefix="/regions", tags=["Regions"])
 
 @router.get("/")
 def get_all_regions(db: Session = Depends(get_db)):
-    """전체 지역 목록 및 통계 - 생물종 수 기준 정렬"""
+    """
+    전체 지역 목록 및 통계 - 히트맵 데이터 포함
+
+    Returns:
+        - items: 지역 목록 (멸종위기종 수 기준 정렬)
+        - heatmap: 히트맵 색상 데이터 (녹색 계열)
+        - legend: 히트맵 범례
+    """
     try:
         regions = db.query(RegionBiodiversity).order_by(
-            desc(RegionBiodiversity.total_species_count)
+            desc(RegionBiodiversity.endangered_count)
         ).all()
 
         logger.info(f"Regions list fetched: {len(regions)} items")
 
-        return {
-            "success": True,
-            "data": {
-                "items": [RegionBiodiversityResponse.model_validate(r) for r in regions],
-                "total": len(regions)
+        # 지역 데이터를 히트맵 형식으로 변환
+        region_stats = [
+            {
+                "region_name": r.region_name,
+                "country": r.country,
+                "endangered_count": r.endangered_count,
+                "total_species_count": r.total_species_count
             }
-        }
+            for r in regions
+        ]
+
+        # 히트맵 데이터 계산 (녹색 계열)
+        heatmap_data = calculate_country_heatmap_data(region_stats)
+
+        return APIResponse.success(
+            data={
+                "items": [RegionBiodiversityResponse.model_validate(r) for r in regions],
+                "total": len(regions),
+                "heatmap": heatmap_data,
+                "legend": get_heatmap_legend()
+            },
+            source="database"
+        )
     except Exception as e:
         logger.error(f"Error fetching regions: {str(e)}")
-        raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
+        return APIResponse.error(
+            code=ErrorCodes.DATABASE_ERROR,
+            message="지역 목록을 가져오는 중 오류가 발생했습니다",
+            status_code=500,
+            details={"error": str(e)}
+        )
 
 
 @router.get("/{region}/species")
@@ -45,7 +75,7 @@ def get_region_species(
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db)
 ):
-    """특정 지역의 생물종 목록"""
+    """특정 지역의 생물종 목록 (페이지네이션)"""
     try:
         query = db.query(Species).filter(Species.region == region)
 
@@ -54,24 +84,28 @@ def get_region_species(
 
         total = query.count()
         items = query.offset((page - 1) * limit).limit(limit).all()
-        pages = (total + limit - 1) // limit
 
         logger.info(f"Region species fetched: {region} - {total} items")
 
-        return {
-            "success": True,
-            "data": {
+        return APIResponse.paginated(
+            items=[SpeciesResponse.model_validate(item) for item in items],
+            total=total,
+            page=page,
+            limit=limit,
+            source="database",
+            additional_data={
                 "region": region,
-                "items": [SpeciesResponse.model_validate(item) for item in items],
-                "total": total,
-                "page": page,
-                "pages": pages,
                 "category": category
             }
-        }
+        )
     except Exception as e:
         logger.error(f"Error fetching region species: {str(e)}")
-        raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
+        return APIResponse.error(
+            code=ErrorCodes.DATABASE_ERROR,
+            message="지역 생물종 목록을 가져오는 중 오류가 발생했습니다",
+            status_code=500,
+            details={"region": region, "error": str(e)}
+        )
 
 
 @router.get("/{region}/biodiversity")

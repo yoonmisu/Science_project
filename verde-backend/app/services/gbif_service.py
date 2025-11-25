@@ -11,7 +11,25 @@ logger = logging.getLogger(__name__)
 
 
 class GBIFService:
-    """GBIF API 클라이언트"""
+    """
+    GBIF (Global Biodiversity Information Facility) API 연동 서비스
+
+    사용자 시나리오:
+    1. 관리자가 "한국의 멸종위기종 데이터 수집" 버튼 클릭
+    2. 이 서비스가 GBIF API에서 한국(KR) 데이터를 가져옴
+    3. GBIF 형식을 우리 Species 모델로 변환
+    4. 데이터베이스에 저장
+
+    주요 기능:
+    - fetch_species_by_region: 국가별 생물종 검색
+    - fetch_species_by_coordinates: 위치 기반 검색
+    - get_biodiversity_statistics: 통계 데이터
+    - search_species_by_name: 이름 기반 검색
+    - get_species_details: 종 상세 정보
+
+    데이터 흐름:
+    GBIF API → GBIFService → 데이터 변환 → Species 모델 → Database
+    """
 
     BASE_URL = "https://api.gbif.org/v1"
 
@@ -38,13 +56,25 @@ class GBIFService:
         taxon_key: Optional[int] = None
     ) -> List[Dict]:
         """
-        국가 코드로 생물종 검색
+        국가별 생물종 데이터 가져오기
+
+        작동 방식:
+        1. GBIF API에 country_code로 요청
+        2. 응답 데이터를 우리 형식으로 변환
+        3. 카테고리 자동 분류 (식물/동물/곤충/해양생물)
+        4. 중복 제거 후 변환된 데이터 반환
+
+        예시:
+        >>> service = GBIFService()
+        >>> species_list = await service.fetch_species_by_region("KR", limit=500)
+        >>> print(f"한국에서 {len(species_list)}종을 찾았습니다")
+        한국에서 500종을 찾았습니다
 
         Args:
             country_code: ISO 국가 코드 (예: 'KR', 'US', 'JP')
-            limit: 결과 수 제한
-            offset: 페이지 오프셋
-            taxon_key: 특정 분류군 필터
+            limit: 결과 수 제한 (기본 100)
+            offset: 페이지 오프셋 (페이지네이션용)
+            taxon_key: 특정 분류군 필터 (예: 6=식물, 1=동물)
 
         Returns:
             Species 모델 형식의 데이터 리스트

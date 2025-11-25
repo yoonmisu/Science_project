@@ -75,7 +75,35 @@ KOREAN_NAME_DICTIONARY = {
 
 
 class DataEnricher:
-    """데이터 보강 서비스"""
+    """
+    데이터 보강 서비스 - 수집된 생물 데이터의 품질을 향상
+
+    사용자 시나리오:
+    1. 관리자가 "데이터 품질 향상" 버튼 클릭
+    2. 누락된 한글명을 Wikipedia에서 검색하여 자동 번역
+    3. 설명이 없는 종에 대해 자동 설명 생성
+    4. 저화질 이미지 필터링
+    5. 보강 결과 통계 반환
+
+    주요 기능:
+    - translate_name: 학명 → 한글명 번역 (Wikipedia 활용)
+    - enrich_missing_korean_names: 누락된 한글명 일괄 보강
+    - generate_description: 종 설명 자동 생성
+    - enrich_missing_descriptions: 누락된 설명 일괄 보강
+    - filter_low_quality_images: 저화질 이미지 제거
+    - get_enrichment_suggestions: 보강이 필요한 데이터 현황
+
+    데이터 품질 향상 프로세스:
+    1. 한글명 없음 → Wikipedia 검색 → 한글명 추가
+    2. 설명 없음 → Wikipedia 요약 또는 템플릿 → 설명 생성
+    3. 이미지 URL → 품질 체크 → 저화질 제거
+    4. 좌표 없음 → 지오코딩 → 좌표 추가 (향후)
+
+    예시:
+    >>> enricher = DataEnricher(db)
+    >>> result = await enricher.enrich_all(limit_per_task=50)
+    >>> print(f"한글명 {result['stats']['translated']}개 추가됨")
+    """
 
     def __init__(self, db: Session):
         self.db = db

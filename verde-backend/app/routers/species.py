@@ -16,6 +16,7 @@ from app.schemas.species import (
     SpeciesUpdate,
     SpeciesResponse,
 )
+from app.api.response import APIResponse, ErrorCodes
 
 logger = logging.getLogger(__name__)
 
@@ -97,18 +98,29 @@ def get_species(
 
         logger.info(f"Species list fetched: {len(items)} items, page {page}")
 
-        return {
-            "success": True,
-            "data": {
-                "items": [SpeciesResponse.model_validate(item) for item in items],
-                "total": total,
-                "page": page,
-                "pages": pages
+        return APIResponse.paginated(
+            items=[SpeciesResponse.model_validate(item) for item in items],
+            total=total,
+            page=page,
+            limit=limit,
+            source="database",
+            additional_data={
+                "category": category,
+                "region": region,
+                "country": country,
+                "conservation_status": conservation_status,
+                "sort_by": sort_by,
+                "sort_order": sort_order
             }
-        }
+        )
     except Exception as e:
         logger.error(f"Error fetching species list: {str(e)}")
-        raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
+        return APIResponse.error(
+            code=ErrorCodes.DATABASE_ERROR,
+            message="생물종 목록을 가져오는 중 오류가 발생했습니다",
+            status_code=500,
+            details={"error": str(e)}
+        )
 
 
 @router.get(
@@ -158,19 +170,28 @@ def get_random_species(db: Session = Depends(get_db)):
 
         total = db.query(Species).count()
         if total == 0:
-            raise HTTPException(status_code=404, detail="등록된 생물종이 없습니다")
+            return APIResponse.error(
+                code=ErrorCodes.SPECIES_NOT_FOUND,
+                message="등록된 생물종이 없습니다",
+                status_code=404
+            )
 
         # 시드 기반 인덱스 계산
         index = today_seed % total
         species = db.query(Species).offset(index).first()
 
         if not species:
-            raise HTTPException(status_code=404, detail="생물종을 찾을 수 없습니다")
+            return APIResponse.error(
+                code=ErrorCodes.SPECIES_NOT_FOUND,
+                message="생물종을 찾을 수 없습니다",
+                status_code=404
+            )
 
-        result = {
-            "success": True,
-            "data": SpeciesResponse.model_validate(species).model_dump()
-        }
+        result = APIResponse.success(
+            data=SpeciesResponse.model_validate(species).model_dump(),
+            source="cache" if cached else "database",
+            cache_info={"hit": False, "ttl": CacheKeys.RANDOM_SPECIES_TTL}
+        )
 
         # 24시간 캐싱
         cache_set(cache_key, result, CacheKeys.RANDOM_SPECIES_TTL)
@@ -181,7 +202,12 @@ def get_random_species(db: Session = Depends(get_db)):
         raise
     except Exception as e:
         logger.error(f"Error fetching random species: {str(e)}")
-        raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
+        return APIResponse.error(
+            code=ErrorCodes.DATABASE_ERROR,
+            message="랜덤 생물종을 가져오는 중 오류가 발생했습니다",
+            status_code=500,
+            details={"error": str(e)}
+        )
 
 
 @router.get("/popular")
@@ -204,19 +230,26 @@ def get_popular_species(
             desc(Species.search_count)
         ).limit(limit).all()
 
-        result = {
-            "success": True,
-            "data": [SpeciesResponse.model_validate(s).model_dump() for s in species]
-        }
+        result = APIResponse.success(
+            data=[SpeciesResponse.model_validate(s).model_dump() for s in species],
+            source="cache" if cached else "database",
+            cache_info={"hit": cached is not None, "ttl": CacheKeys.POPULAR_SPECIES_TTL}
+        )
 
         # 30분 캐싱
-        cache_set(cache_key, result, CacheKeys.POPULAR_SPECIES_TTL)
-        logger.info(f"Popular species cached: {len(species)} items")
+        if not cached:
+            cache_set(cache_key, result, CacheKeys.POPULAR_SPECIES_TTL)
+            logger.info(f"Popular species cached: {len(species)} items")
 
         return result
     except Exception as e:
         logger.error(f"Error fetching popular species: {str(e)}")
-        raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
+        return APIResponse.error(
+            code=ErrorCodes.DATABASE_ERROR,
+            message="인기 생물종을 가져오는 중 오류가 발생했습니다",
+            status_code=500,
+            details={"error": str(e)}
+        )
 
 
 @router.get(
@@ -270,7 +303,12 @@ def get_species_by_id(species_id: int, db: Session = Depends(get_db)):
 
         if not species:
             logger.warning(f"Species not found: {species_id}")
-            raise HTTPException(status_code=404, detail="생물종을 찾을 수 없습니다")
+            return APIResponse.error(
+                code=ErrorCodes.SPECIES_NOT_FOUND,
+                message="생물종을 찾을 수 없습니다",
+                status_code=404,
+                details={"species_id": species_id}
+            )
 
         # 조회수 증가
         species.search_count += 1
@@ -279,15 +317,21 @@ def get_species_by_id(species_id: int, db: Session = Depends(get_db)):
 
         logger.info(f"Species fetched: {species.name} (id={species_id}), views={species.search_count}")
 
-        return {
-            "success": True,
-            "data": SpeciesResponse.model_validate(species)
-        }
+        return APIResponse.success(
+            data=SpeciesResponse.model_validate(species),
+            source="database",
+            metadata={"view_count": species.search_count}
+        )
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error fetching species {species_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
+        return APIResponse.error(
+            code=ErrorCodes.DATABASE_ERROR,
+            message="생물종 정보를 가져오는 중 오류가 발생했습니다",
+            status_code=500,
+            details={"species_id": species_id, "error": str(e)}
+        )
 
 
 @router.post(
@@ -344,15 +388,20 @@ def create_species(species_data: SpeciesCreate, db: Session = Depends(get_db)):
 
         logger.info(f"New species created: {species.name} (id={species.id})")
 
-        return {
-            "success": True,
-            "data": SpeciesResponse.model_validate(species),
-            "message": "생물종이 성공적으로 등록되었습니다"
-        }
+        return APIResponse.success(
+            data=SpeciesResponse.model_validate(species),
+            source="database",
+            metadata={"message": "생물종이 성공적으로 등록되었습니다"}
+        )
     except Exception as e:
         db.rollback()
         logger.error(f"Error creating species: {str(e)}")
-        raise HTTPException(status_code=500, detail="생물종 등록 중 오류가 발생했습니다")
+        return APIResponse.error(
+            code=ErrorCodes.DATABASE_ERROR,
+            message="생물종 등록 중 오류가 발생했습니다",
+            status_code=500,
+            details={"error": str(e)}
+        )
 
 
 @router.put("/{species_id}")
@@ -366,7 +415,12 @@ def update_species(
         species = db.query(Species).filter(Species.id == species_id).first()
 
         if not species:
-            raise HTTPException(status_code=404, detail="생물종을 찾을 수 없습니다")
+            return APIResponse.error(
+                code=ErrorCodes.SPECIES_NOT_FOUND,
+                message="생물종을 찾을 수 없습니다",
+                status_code=404,
+                details={"species_id": species_id}
+            )
 
         update_data = species_data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
@@ -379,16 +433,22 @@ def update_species(
 
         logger.info(f"Species updated: {species.name} (id={species_id})")
 
-        return {
-            "success": True,
-            "data": SpeciesResponse.model_validate(species)
-        }
+        return APIResponse.success(
+            data=SpeciesResponse.model_validate(species),
+            source="database",
+            metadata={"message": "생물종 정보가 성공적으로 수정되었습니다"}
+        )
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
         logger.error(f"Error updating species {species_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
+        return APIResponse.error(
+            code=ErrorCodes.DATABASE_ERROR,
+            message="생물종 정보 수정 중 오류가 발생했습니다",
+            status_code=500,
+            details={"species_id": species_id, "error": str(e)}
+        )
 
 
 @router.delete("/{species_id}", status_code=204)
@@ -398,15 +458,31 @@ def delete_species(species_id: int, db: Session = Depends(get_db)):
         species = db.query(Species).filter(Species.id == species_id).first()
 
         if not species:
-            raise HTTPException(status_code=404, detail="생물종을 찾을 수 없습니다")
+            return APIResponse.error(
+                code=ErrorCodes.SPECIES_NOT_FOUND,
+                message="생물종을 찾을 수 없습니다",
+                status_code=404,
+                details={"species_id": species_id}
+            )
 
         db.delete(species)
         db.commit()
 
         logger.info(f"Species deleted: id={species_id}")
+
+        return APIResponse.success(
+            data={"deleted_id": species_id},
+            source="database",
+            metadata={"message": "생물종이 성공적으로 삭제되었습니다"}
+        )
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
         logger.error(f"Error deleting species {species_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
+        return APIResponse.error(
+            code=ErrorCodes.DATABASE_ERROR,
+            message="생물종 삭제 중 오류가 발생했습니다",
+            status_code=500,
+            details={"species_id": species_id, "error": str(e)}
+        )

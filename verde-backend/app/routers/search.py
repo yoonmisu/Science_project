@@ -14,6 +14,7 @@ from app.models.species import Species
 from app.models.search_query import SearchQuery
 from app.schemas.species import SpeciesResponse
 from app.schemas.search import SearchRequest
+from app.api.response import APIResponse, ErrorCodes
 
 logger = logging.getLogger(__name__)
 
@@ -61,19 +62,26 @@ def get_trending_searches(
         # Redis Sorted Set에서 조회
         trending = get_top_searches(limit=limit, category=category)
 
-        result = {
-            "success": True,
-            "data": trending
-        }
+        result = APIResponse.success(
+            data=trending,
+            source="cache" if cached else "database",
+            cache_info={"hit": cached is not None, "ttl": CacheKeys.TRENDING_SEARCHES_TTL}
+        )
 
         # 5분 캐싱
-        cache_set(cache_key, result, CacheKeys.TRENDING_SEARCHES_TTL)
-        logger.info(f"Trending searches cached: {len(trending)} items")
+        if not cached:
+            cache_set(cache_key, result, CacheKeys.TRENDING_SEARCHES_TTL)
+            logger.info(f"Trending searches cached: {len(trending)} items")
 
         return result
     except Exception as e:
         logger.error(f"Error fetching trending searches: {str(e)}")
-        raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
+        return APIResponse.error(
+            code=ErrorCodes.DATABASE_ERROR,
+            message="인기 검색어를 가져오는 중 오류가 발생했습니다",
+            status_code=500,
+            details={"error": str(e)}
+        )
 
 
 @router.post(
@@ -168,22 +176,27 @@ def search_species(
 
         logger.info(f"Search performed: '{q}' - {total} results")
 
-        return {
-            "success": True,
-            "data": {
-                "items": [SpeciesResponse.model_validate(item).model_dump() for item in items],
-                "total": total,
-                "page": page,
-                "pages": pages,
+        return APIResponse.paginated(
+            items=[SpeciesResponse.model_validate(item).model_dump() for item in items],
+            total=total,
+            page=page,
+            limit=limit,
+            source="database",
+            additional_data={
                 "query": q,
                 "category": category,
                 "region": region
             }
-        }
+        )
     except Exception as e:
         db.rollback()
         logger.error(f"Error performing search: {str(e)}")
-        raise HTTPException(status_code=500, detail="검색 중 오류가 발생했습니다")
+        return APIResponse.error(
+            code=ErrorCodes.DATABASE_ERROR,
+            message="검색 중 오류가 발생했습니다",
+            status_code=500,
+            details={"query": search_request.query, "error": str(e)}
+        )
 
 
 @router.get(
@@ -237,15 +250,18 @@ def get_search_suggestions(
 
         logger.info(f"Suggestions for '{q}': {len(suggestions)} items")
 
-        return {
-            "success": True,
-            "data": {
-                "suggestions": suggestions[:10]
-            }
-        }
+        return APIResponse.success(
+            data={"suggestions": suggestions[:10]},
+            source="database"
+        )
     except Exception as e:
         logger.error(f"Error fetching suggestions: {str(e)}")
-        raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
+        return APIResponse.error(
+            code=ErrorCodes.DATABASE_ERROR,
+            message="자동완성 추천을 가져오는 중 오류가 발생했습니다",
+            status_code=500,
+            details={"query": q, "error": str(e)}
+        )
 
 
 @router.get("/popular")
@@ -262,16 +278,21 @@ def get_popular_searches(
             desc(SearchQuery.search_count)
         ).limit(limit).all()
 
-        return {
-            "success": True,
-            "data": [
+        return APIResponse.success(
+            data=[
                 {"query": p.query_text, "count": p.search_count}
                 for p in popular
-            ]
-        }
+            ],
+            source="database"
+        )
     except Exception as e:
         logger.error(f"Error fetching popular searches: {str(e)}")
-        raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
+        return APIResponse.error(
+            code=ErrorCodes.DATABASE_ERROR,
+            message="인기 검색어를 가져오는 중 오류가 발생했습니다",
+            status_code=500,
+            details={"error": str(e)}
+        )
 
 
 @router.get("/realtime")
@@ -283,10 +304,15 @@ def get_realtime_ranking(
     try:
         ranking = get_top_searches(limit=limit, category=category)
 
-        return {
-            "success": True,
-            "data": ranking
-        }
+        return APIResponse.success(
+            data=ranking,
+            source="cache"
+        )
     except Exception as e:
         logger.error(f"Error fetching realtime ranking: {str(e)}")
-        raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
+        return APIResponse.error(
+            code=ErrorCodes.CACHE_ERROR,
+            message="실시간 검색 순위를 가져오는 중 오류가 발생했습니다",
+            status_code=500,
+            details={"error": str(e)}
+        )

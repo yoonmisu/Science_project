@@ -7,6 +7,7 @@ import logging
 from app.database import get_db
 from app.models.species import Species
 from app.schemas.species import SpeciesResponse
+from app.api.response import APIResponse, ErrorCodes
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ def get_endangered_species(
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db)
 ):
-    """멸종위기종 전체 목록"""
+    """멸종위기종 전체 목록 (페이지네이션)"""
     try:
         query = db.query(Species).filter(
             Species.conservation_status.in_(ENDANGERED_STATUSES)
@@ -39,22 +40,28 @@ def get_endangered_species(
         items = query.order_by(desc(Species.search_count)).offset(
             (page - 1) * limit
         ).limit(limit).all()
-        pages = (total + limit - 1) // limit
 
         logger.info(f"Endangered species fetched: {total} items")
 
-        return {
-            "success": True,
-            "data": {
-                "items": [SpeciesResponse.model_validate(item) for item in items],
-                "total": total,
-                "page": page,
-                "pages": pages
+        return APIResponse.paginated(
+            items=[SpeciesResponse.model_validate(item) for item in items],
+            total=total,
+            page=page,
+            limit=limit,
+            source="database",
+            additional_data={
+                "region": region,
+                "category": category
             }
-        }
+        )
     except Exception as e:
         logger.error(f"Error fetching endangered species: {str(e)}")
-        raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
+        return APIResponse.error(
+            code=ErrorCodes.DATABASE_ERROR,
+            message="멸종위기종 목록을 가져오는 중 오류가 발생했습니다",
+            status_code=500,
+            details={"error": str(e)}
+        )
 
 
 @router.get("/most-mentioned")
@@ -95,8 +102,10 @@ def get_most_mentioned_endangered(
 
 @router.get("/statistics")
 def get_endangered_statistics(db: Session = Depends(get_db)):
-    """멸종위기종 통계 - 카테고리별, 지역별 집계"""
+    """멸종위기종 통계 - 카테고리별, 지역별 집계 (히트맵 포함)"""
     try:
+        from app.utils.heatmap import calculate_country_heatmap_data, get_heatmap_legend
+
         # 전체 멸종위기종 수
         total = db.query(Species).filter(
             Species.conservation_status.in_(ENDANGERED_STATUSES)
@@ -128,7 +137,7 @@ def get_endangered_statistics(db: Session = Depends(get_db)):
             Species.conservation_status.in_(ENDANGERED_STATUSES)
         ).group_by(Species.conservation_status).all()
 
-        # 국가별 통계
+        # 국가별 통계 (히트맵용)
         by_country = db.query(
             Species.country,
             func.count(Species.id).label("count")
@@ -138,11 +147,17 @@ def get_endangered_statistics(db: Session = Depends(get_db)):
             desc("count")
         ).all()
 
+        # 히트맵 데이터 계산 (녹색 계열)
+        country_stats = [
+            {"country": c.country, "endangered_count": c.count}
+            for c in by_country
+        ]
+        heatmap_data = calculate_country_heatmap_data(country_stats)
+
         logger.info("Endangered statistics fetched")
 
-        return {
-            "success": True,
-            "data": {
+        return APIResponse.success(
+            data={
                 "total_endangered": total,
                 "by_category": {c.category: c.count for c in by_category},
                 "by_region": [
@@ -153,12 +168,20 @@ def get_endangered_statistics(db: Session = Depends(get_db)):
                 "by_country": [
                     {"country": c.country, "count": c.count}
                     for c in by_country
-                ]
-            }
-        }
+                ],
+                "heatmap": heatmap_data,
+                "legend": get_heatmap_legend()
+            },
+            source="database"
+        )
     except Exception as e:
         logger.error(f"Error fetching statistics: {str(e)}")
-        raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
+        return APIResponse.error(
+            code=ErrorCodes.DATABASE_ERROR,
+            message="통계 데이터를 가져오는 중 오류가 발생했습니다",
+            status_code=500,
+            details={"error": str(e)}
+        )
 
 
 @router.get("/critical")
