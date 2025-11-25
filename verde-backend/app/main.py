@@ -6,7 +6,7 @@ import logging
 
 from app.config import settings
 from app.database import engine, Base, get_db
-from app.routers import species_router, search_router, regions_router, endangered_router, auth_router, upload_router, import_router, biodiversity_router, external_router, map_router
+from app.routers import species_router, search_router, regions_router, endangered_router, auth_router, upload_router, import_router, biodiversity_router, external_router, map_router, admin_router
 from app.services.species_service import SpeciesService
 from app.services.scheduler_service import scheduler_service
 from app.cache import health_check as redis_health_check, cache_get, cache_set, CacheKeys
@@ -69,6 +69,10 @@ tags_metadata = [
     {
         "name": "Map",
         "description": "지도 인터랙션 API. 지오코딩, 공간 검색, 클러스터링, 핫스팟 분석을 제공합니다. PostGIS 기반 공간 쿼리를 지원합니다.",
+    },
+    {
+        "name": "Admin",
+        "description": "관리자 API. 통계 대시보드, 데이터 품질 관리, 시스템 모니터링을 제공합니다. 관리자 권한이 필요합니다.",
     },
 ]
 
@@ -138,6 +142,7 @@ app.include_router(import_router, prefix=API_V1_PREFIX)
 app.include_router(biodiversity_router, prefix=API_V1_PREFIX)
 app.include_router(external_router, prefix=API_V1_PREFIX)
 app.include_router(map_router, prefix=API_V1_PREFIX)
+app.include_router(admin_router, prefix=API_V1_PREFIX)
 
 # Prometheus 메트릭 설정
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
