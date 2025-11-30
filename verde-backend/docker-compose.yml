@@ -29,8 +29,8 @@ services:
       dockerfile: Dockerfile
     container_name: verde_api
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:password@db:5432/verde_db}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:CHANGE_ME@db:5432/verde_db}
+      - REDIS_URL=${REDIS_URL:-redis://:dev_redis_insecure@redis:6379/0}
       - SECRET_KEY=${SECRET_KEY}
       - DEBUG=${DEBUG:-False}
       - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:5173"]}
@@ -59,7 +59,7 @@ services:
     container_name: verde_postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-naEga#je1l#joahaneun!gyejeol-un#ga2l1mNida!2025Nyeon$11Wol$21il}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGE_ME_DEV_ONLY}
       POSTGRES_DB: ${POSTGRES_DB:-verde_db}
     ports:
       - "${DB_PORT:-5432}:5432"
@@ -86,7 +86,7 @@ services:
       --appendonly yes
       --maxmemory ${REDIS_MAXMEMORY:-512mb}
       --maxmemory-policy allkeys-lru
-      --requirepass ${REDIS_PASSWORD:-e8f9d0c2b4a6e89a3f8c2e1d5b4a706e}
+      --requirepass ${REDIS_PASSWORD:-dev_redis_insecure}
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
