@@ -1,13 +1,14 @@
-# Environment variables
-.env
-.env.*
-!.env.example
-
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-
-# Backups
-*.backup
+venv/
+.venv/
+.env
+.pytest_cache/
+.coverage
+*.db
+*.sqlite3
+postgres_data/
+redis_data/
+*.log
+.DS_Store

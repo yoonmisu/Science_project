@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, ChevronRight } from 'lucide-react';
 import logoImg from '../assets/logo.png';
-import mapImg from '../assets/map.png';
+import InteractiveDottedMap from '../components/InteractiveDottedMap';
 
 const categoryThemes = {
   식물: {
@@ -167,8 +167,7 @@ const countryData = {
 const HomePage = () => {
   const [category, setCategory] = useState('동물');
   const [selectedCountry, setSelectedCountry] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [hoveredCountry, setHoveredCountry] = useState(null); 
+  const [isModalOpen, setIsModalOpen] = useState(false); 
   
   const [modalView, setModalView] = useState('species'); 
   const [speciesPage, setSpeciesPage] = useState(0); 
@@ -191,11 +190,28 @@ const HomePage = () => {
     '호주 멸종 위기종!!!!'
   ];
 
-  const handleCountryClick = (countryId) => {
-    setSelectedCountry(countryId);
-    setSpeciesPage(0);
-    setModalView('species');
-    setIsModalOpen(true);
+  // InteractiveDottedMap 콜백: { name, code } 객체를 받음
+  const handleCountryClick = (country) => {
+    // country.code를 사용하여 countryData의 키와 매칭
+    // 예: { name: "South Korea", code: "kr" } -> countryId: "korea"
+    const countryMapping = {
+      'kr': 'korea',
+      'jp': 'japan',
+      'us': 'usa',
+      'cn': 'china',
+      'ru': 'russia'
+    };
+
+    const countryId = countryMapping[country.code];
+
+    if (countryId) {
+      setSelectedCountry(countryId);
+      setSpeciesPage(0);
+      setModalView('species');
+      setIsModalOpen(true);
+    } else {
+      console.log('클릭한 국가:', country.name, '(데이터 없음)');
+    }
   };
 
   const closeModal = () => {
@@ -332,77 +348,21 @@ const HomePage = () => {
               backgroundColor: '#ffffff',
               borderRadius: '25px',
               boxShadow: '0 3px 6px rgba(150, 180, 150, 0.2)',
-              padding: '40px',
-              position: 'relative',
-              height: '450px'
+              padding: '20px',
+              overflow: 'hidden',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center'
             }}>
-              <img src={mapImg} alt="세계지도" style={{ width: '800px', height: '460px' }}/>
-                <button
-                  onClick={() => handleCountryClick('korea')}
-                  onMouseEnter={() => setHoveredCountry('korea')}
-                  onMouseLeave={() => setHoveredCountry(null)}
-                  style={{
-                    position: 'absolute', top: '45%', right: '28%', width: '50px', height: '50px', borderRadius: '50%', border: 'none', backgroundColor: 'transparent', color: 'white', fontSize: '24px', cursor: 'pointer', boxShadow: '0 4px 8px rgba(0,0,0,0.2)', transition: 'opacity 0.3s', opacity: hoveredCountry === 'korea' ? 1 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center'      
-                  }}
-                  title="대한민국"
-                >
-                🇰🇷
-                </button>
-
-                <button
-                  onClick={() => handleCountryClick('japan')}
-                  onMouseEnter={() => setHoveredCountry('japan')}
-                  onMouseLeave={() => setHoveredCountry(null)}
-                  style={{
-                    position: 'absolute', top: '45%', right: '25%', width: '45px', height: '45px', borderRadius: '50%', border: 'none', backgroundColor: 'transparent', color: 'white', fontSize: '22px', cursor: 'pointer', boxShadow: '0 4px 8px rgba(0,0,0,0.2)', transition: 'opacity 0.3s', opacity: hoveredCountry === 'japan' ? 1 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center'      
-                  }}
-                  title="일본"
-                >
-                  🇯🇵
-                </button>
-
-                <button
-                  onClick={() => handleCountryClick('usa')}
-                  onMouseEnter={() => setHoveredCountry('usa')}
-                  onMouseLeave={() => setHoveredCountry(null)}
-                  style={{
-                    position: 'absolute', top: '40%', left: '20%', width: '60px', height: '60px', borderRadius: '50%', border: 'none', backgroundColor: 'transparent', color: 'white', fontSize: '28px', cursor: 'pointer', boxShadow: '0 4px 8px rgba(0,0,0,0.2)', transition: 'opacity 0.3s', opacity: hoveredCountry === 'usa' ? 1 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center'      
-                  }}
-                  title="미국"
-                >
-                  🇺🇸
-                </button>
-
-                <button
-                  onClick={() => handleCountryClick('china')}
-                  onMouseEnter={() => setHoveredCountry('china')}
-                  onMouseLeave={() => setHoveredCountry(null)}
-                  style={{
-                    position: 'absolute', top: '43%', right: '35%', width: '50px', height: '50px', borderRadius: '50%', border: 'none', backgroundColor: 'transparent', color: 'white', fontSize: '24px', cursor: 'pointer', boxShadow: '0 4px 8px rgba(0,0,0,0.2)', transition: 'opacity 0.3s', opacity: hoveredCountry === 'china' ? 1 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center'      
-                  }}
-                  title="중국"
-                >
-                  🇨🇳
-                </button>
-
-                <button
-                  onClick={() => handleCountryClick('russia')}
-                  onMouseEnter={() => setHoveredCountry('russia')}
-                  onMouseLeave={() => setHoveredCountry(null)}
-                  style={{
-                    position: 'absolute', top: '30%', left: '60%', width: '60px', height: '60px', borderRadius: '50%', border: 'none', backgroundColor: 'transparent', color: 'white', fontSize: '28px', cursor: 'pointer', boxShadow: '0 4px 8px rgba(0,0,0,0.2)', transition: 'opacity 0.3s', opacity: hoveredCountry === 'russia' ? 1 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center'      
-                  }}
-                  title="러시아"
-                >
-                🇷🇺
-                </button>
-
-                <div style={{
-                  color: '#a0a0a0',
-                  fontSize: '14px',
-                  textAlign: 'center'
-                }}>
-                </div>
+              <InteractiveDottedMap
+                width={800}
+                height={400}
+                dotSpacing={2}
+                dotRadius={1.0}
+                dotColor="#6B8E6F"
+                highlightColor="#2D5A2F"
+                onCountryClick={handleCountryClick}
+              />
             </div>
           </div>
         </div>
