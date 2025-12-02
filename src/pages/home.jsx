@@ -1,176 +1,29 @@
-import React, { useState } from 'react';
-import { X, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, ChevronRight, Search } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 import InteractiveDottedMap from '../components/InteractiveDottedMap';
-
-const categoryThemes = {
-  식물: {
-    bg: 'bg-white',
-    border: 'border-green-200',
-    button: 'bg-green-100 hover:bg-green-200',
-    title: 'text-black',
-    icon: '🌿'
-  },
-  동물: {
-    bg: 'bg-white',
-    border: 'border-amber-200',
-    button: 'bg-amber-100 hover:bg-amber-200',
-    title: 'text-black',
-    icon: '🦌'
-  },
-  곤충: {
-    bg: 'bg-white',
-    border: 'border-yellow-200',
-    button: 'bg-yellow-100 hover:bg-yellow-200',
-    title: 'text-black',
-    icon: '🐝'
-  },
-  해양생물: {
-    bg: 'bg-white',
-    border: 'border-blue-200',
-    button: 'bg-blue-100 hover:bg-blue-200',
-    title: 'text-black',
-    icon: '🐠'
-  }
-};
-
-const countryData = {
-  korea: {
-    name: '대한민국',
-    식물: [
-      { id: 1, name: '무궁화', image: '🌺', color: 'purple' },
-      { id: 2, name: '코스모스', image: '🌸', color: 'orange' },
-      { id: 3, name: '벚꽃', image: '🌸', color: 'pink' },
-      { id: 4, name: '진달래', image: '🌷', color: 'red' },
-      { id: 5, name: '소나무', image: '🌲', color: 'green' },
-      { id: 6, name: '난초', image: '🌱', color: 'white' }
-    ],
-    동물: [
-      { id: 1, name: '호랑이', image: '🐯', color: 'orange' },
-      { id: 2, name: '까치', image: '🐦', color: 'black' },
-      { id: 3, name: '노루', image: '🦌', color: 'brown' },
-      { id: 4, name: '곰', image: '🐻', color: 'brown' },
-      { id: 5, name: '토끼', image: '🐇', color: 'white' },
-      { id: 6, name: '늑대', image: '🐺', color: 'gray' }
-    ],
-    곤충: [
-      { id: 1, name: '무당벌레', image: '🐞', color: 'red' },
-      { id: 2, name: '나비', image: '🦋', color: 'blue' },
-      { id: 3, name: '잠자리', image: '🦟', color: 'green' },
-      { id: 4, name: '장수풍뎅이', image: '🪲', color: 'black' },
-      { id: 5, name: '개미', image: '🐜', color: 'black' },
-      { id: 6, name: '벌', image: '🐝', color: 'yellow' }
-    ],
-    해양생물: [
-      { id: 1, name: '명태', image: '🐟', color: 'silver' },
-      { id: 2, name: '해파리', image: '🪼', color: 'transparent' },
-      { id: 3, name: '문어', image: '🐙', color: 'red' }
-    ]
-  },
-  japan: {
-    name: '일본',
-    식물: [
-      { id: 1, name: '벚꽃', image: '🌸', color: 'pink' },
-      { id: 2, name: '국화', image: '🌼', color: 'yellow' },
-      { id: 3, name: '매화', image: '🌺', color: 'white' },
-      { id: 4, name: '단풍', image: '🍁', color: 'red' }
-    ],
-    동물: [
-      { id: 1, name: '원숭이', image: '🐵', color: 'brown' },
-      { id: 2, name: '사슴', image: '🦌', color: 'brown' },
-      { id: 3, name: '두루미', image: '🦢', color: 'white' },
-      { id: 4, name: '너구리', image: '🦝', color: 'brown' }
-    ],
-    곤충: [
-      { id: 1, name: '사슴벌레', image: '🪲', color: 'black' },
-      { id: 2, name: '반딧불이', image: '✨', color: 'yellow' },
-      { id: 3, name: '매미', image: '🦗', color: 'green' }
-    ],
-    해양생물: [
-      { id: 1, name: '참치', image: '🐟', color: 'blue' },
-      { id: 2, name: '오징어', image: '🦑', color: 'white' },
-      { id: 3, name: '고래', image: '🐋', color: 'blue' }
-    ]
-  },
-  usa: {
-    name: '미국',
-    식물: [
-      { id: 1, name: '장미', image: '🌹', color: 'red' },
-      { id: 2, name: '선인장', image: '🌵', color: 'green' },
-      { id: 3, name: '해바라기', image: '🌻', color: 'yellow' }
-    ],
-    동물: [
-      { id: 1, name: '대머리독수리', image: '🦅', color: 'brown' },
-      { id: 2, name: '들소', image: '🦬', color: 'brown' },
-      { id: 3, name: '회색곰', image: '🐻', color: 'brown' }
-    ],
-    곤충: [
-      { id: 1, name: '군주나비', image: '🦋', color: 'orange' },
-      { id: 2, name: '꿀벌', image: '🐝', color: 'yellow' },
-      { id: 3, name: '반딧불이', image: '✨', color: 'yellow' }
-    ],
-    해양생물: [
-      { id: 1, name: '돌고래', image: '🐬', color: 'gray' },
-      { id: 2, name: '상어', image: '🦈', color: 'gray' },
-      { id: 3, name: '바다거북', image: '🐢', color: 'green' }
-    ]
-  },
-  china: {
-    name: '중국',
-    식물: [
-      { id: 1, name: '대나무', image: '🎋', color: 'green' },
-      { id: 2, name: '모란', image: '🏵️', color: 'pink' },
-      { id: 3, name: '연꽃', image: '🪷', color: 'white' }
-    ],
-    동물: [
-      { id: 1, name: '판다', image: '🐼', color: 'black/white' },
-      { id: 2, name: '호랑이', image: '🐯', color: 'orange' },
-      { id: 3, name: '붉은털원숭이', image: '🐒', color: 'brown' }
-    ],
-    곤충: [
-      { id: 1, name: '비단벌레', image: '💎', color: 'green' },
-      { id: 2, name: '나방', image: ' moth ', color: 'brown' },
-      { id: 3, name: '매미', image: '🦗', color: 'green' }
-    ],
-    해양생물: [
-      { id: 1, name: '민물돌고래', image: '🐬', color: 'white' },
-      { id: 2, name: '상어', image: '🦈', color: 'gray' },
-      { id: 3, name: '거북이', image: '🐢', color: 'green' }
-    ]
-  },
-  
-  russia: {
-    name: '러시아',
-    식물: [
-      { id: 1, name: '자작나무', image: '🌲', color: 'white/black' },
-      { id: 2, name: '카모마일', image: '🌼', color: 'white' },
-      { id: 3, name: '라일락', image: '🌸', color: 'purple' }
-    ],
-    동물: [
-      { id: 1, name: '시베리아호랑이', image: '🐅', color: 'orange' },
-      { id: 2, name: '불곰', image: '🐻', color: 'brown' },
-      { id: 3, name: '늑대', image: '🐺', color: 'gray' }
-    ],
-    곤충: [
-      { id: 1, name: '모기', image: '🦟', color: 'black' },
-      { id: 2, name: '꿀벌', image: '🐝', color: 'yellow' },
-      { id: 3, name: '나비', image: '🦋', color: 'colorful' }
-    ],
-    해양생물: [
-      { id: 1, name: '벨루가', image: '🐳', color: 'white' },
-      { id: 2, name: '바다표범', image: '🦭', color: 'gray' },
-      { id: 3, name: '연어', image: '🐟', color: 'pink' }
-    ]
-  }
-};
+import { categoryThemes, countryNames, endangeredSpeciesCount } from '../data/biodiversityData';
+import { fetchSpeciesByCountry, searchSpeciesByName } from '../services/api';
+import { SpeciesCardSkeletonGrid } from '../components/SpeciesCardSkeleton';
+import ErrorMessage from '../components/ErrorMessage';
 
 const HomePage = () => {
   const [category, setCategory] = useState('동물');
-  const [selectedCountry, setSelectedCountry] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false); 
-  
-  const [modalView, setModalView] = useState('species'); 
-  const [speciesPage, setSpeciesPage] = useState(0); 
+  const [selectedLocation, setSelectedLocation] = useState(null); // { lat, lng, name, countryCode }
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const [modalView, setModalView] = useState('species');
+  const [speciesPage, setSpeciesPage] = useState(0);
+
+  // API 상태 관리
+  const [speciesData, setSpeciesData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [totalPages, setTotalPages] = useState(0);
+
+  // 검색 기능 상태
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredCountries, setFilteredCountries] = useState(null); // null = 전체 표시, array = 필터링된 국가들
 
   const categories = ['동물', '식물', '곤충', '해양생물'];
   const categoryIcons = {
@@ -190,97 +43,211 @@ const HomePage = () => {
     '호주 멸종 위기종!!!!'
   ];
 
-  // InteractiveDottedMap 콜백: { name, code } 객체를 받음
-  const handleCountryClick = (country) => {
-    // country.code를 사용하여 countryData의 키와 매칭
-    // 예: { name: "South Korea", code: "kr" } -> countryId: "korea"
-    const countryMapping = {
-      'kr': 'korea',
-      'jp': 'japan',
-      'us': 'usa',
-      'cn': 'china',
-      'ru': 'russia'
+  // 위치와 카테고리가 선택되면 API 호출
+  useEffect(() => {
+    if (!selectedLocation || !isModalOpen || modalView !== 'species') {
+      return;
+    }
+
+    const loadSpeciesData = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        // 국가 코드 매핑 없이 직접 전달 (백엔드에서 처리)
+        const countryCode = selectedLocation.countryCode;
+
+        if (!countryCode) {
+          setError('국가 정보를 확인할 수 없습니다.');
+          setSpeciesData([]);
+          setIsLoading(false);
+          return;
+        }
+
+        console.log(`📡 API 호출: ${selectedLocation.name} (${countryCode}) - ${category}`);
+
+        // ISO 코드 기반 API 호출
+        const response = await fetchSpeciesByCountry(
+          countryCode,
+          category,
+          speciesPage + 1,
+          3
+        );
+
+        setSpeciesData(response.data);
+        setTotalPages(response.totalPages);
+        console.log(`✅ 데이터 로드 성공: ${response.data.length}개`);
+      } catch (err) {
+        console.error('❌ API 호출 실패:', err);
+        setError(err.message || '데이터를 불러오는 중 오류가 발생했습니다.');
+        setSpeciesData([]);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    const countryId = countryMapping[country.code];
+    loadSpeciesData();
+  }, [selectedLocation, category, speciesPage, isModalOpen, modalView]);
 
-    if (countryId) {
-      setSelectedCountry(countryId);
-      setSpeciesPage(0);
-      setModalView('species');
-      setIsModalOpen(true);
-    } else {
-      console.log('클릭한 국가:', country.name, '(데이터 없음)');
-    }
+  // InteractiveDottedMap 콜백: { name, code, lat, lng } 객체를 받음
+  const handleCountryClick = (location) => {
+    console.log(`🗺️ 지도 클릭: ${location.name} (${location.lat.toFixed(2)}, ${location.lng.toFixed(2)})`);
+
+    // 위치 정보 + 국가 코드를 저장하고 모달 열기
+    setSelectedLocation({
+      lat: location.lat,
+      lng: location.lng,
+      name: location.name,
+      countryCode: location.code // 빠른 조회를 위한 국가 코드
+    });
+    setSpeciesPage(0);
+    setModalView('species');
+    setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
-    setSelectedCountry(null);
+    setSelectedLocation(null);
   };
-  
+
   const goToEndangeredView = () => {
     setModalView('endangered');
   };
-  
+
+  // 에러 재시도 핸들러
+  const handleRetry = () => {
+    setError(null);
+    setSpeciesPage(0); // 페이지 리셋하면 useEffect가 자동으로 재실행됨
+  };
+
   const theme = categoryThemes[category];
-  const currentData = selectedCountry ? countryData[selectedCountry] : null;
-  const itemsPerPage = 3;
-  const totalSpeciesItems = currentData ? currentData[category]?.length || 0 : 0;
-  const totalSpeciesPages = Math.ceil(totalSpeciesItems / itemsPerPage);
-  
-  const currentSpeciesData = currentData 
-    ? currentData[category]?.slice(speciesPage * itemsPerPage, speciesPage * itemsPerPage + itemsPerPage)
-    : [];
+
+  // API 데이터 사용 (mockData는 제거됨)
+  const currentSpeciesData = speciesData || [];
+
   const handleNextPage = () => {
-    if (speciesPage < totalSpeciesPages - 1) {
+    if (speciesPage < totalPages - 1) {
       setSpeciesPage((prev) => prev + 1);
-    } 
+    }
   };
 
   const handlePrevPage = () => {
     if (speciesPage > 0) {
       setSpeciesPage((prev) => prev - 1);
-    } 
+    }
+  };
+
+  // 검색 처리 함수 (종 이름 기반)
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      // 검색어가 비어있으면 전체 표시
+      setFilteredCountries(null);
+      return;
+    }
+
+    try {
+      // 백엔드 API를 통해 종 검색
+      const result = await searchSpeciesByName(searchQuery, category);
+
+      if (result.countries && result.countries.length > 0) {
+        setFilteredCountries(result.countries);
+        console.log(`🔍 "${searchQuery}" 검색 결과:`, result.countries);
+      } else {
+        setFilteredCountries([]);
+        console.log(`🔍 "${searchQuery}" 검색 결과: 없음`);
+      }
+    } catch (error) {
+      console.error('❌ 검색 오류:', error);
+      setFilteredCountries([]);
+    }
+  };
+
+  // Enter 키로 검색
+  const handleSearchKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
+  // 검색 초기화
+  const clearSearch = () => {
+    setSearchQuery('');
+    setFilteredCountries(null);
   };
 
   return (
     <div style={{
-      backgroundColor: '#ffffff', 
-      minHeight: '100vh', 
+      backgroundColor: '#ffffff',
+      minHeight: '100vh',
       fontFamily: 'Pretendard, sans-serif',
       color: '#2e3d2f',
-      padding: '0 50px'
+      padding: '0 30px'
     }}>
       <div style={{ padding: '20px 0' }}>
-        <div style={{ 
-          display: 'flex', 
+        <div style={{
+          display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          <img src={logoImg} alt="Verde 로고" style={{ height: '60px' }}/>
-          <div style={{ position: 'relative' }}>
-            <input
-              type="text"
-              placeholder="나라이름과 카테고리명을 꼭 넣어서 검색해요..."
-              style={{
-                width: '320px',
-                padding: '12px 40px 12px 20px',
-                border: '1px solid #d0d0d0',
-                borderRadius: '25px',
-                fontSize: '14px',
-                outline: 'none'
-              }}
-            />
-            <span style={{ 
-              position: 'absolute', 
-              right: '15px', 
-              top: '50%', 
-              transform: 'translateY(-50%)',
-              cursor: 'pointer'
-            }}>
-              🔍
-            </span>
+          <img src={logoImg} alt="Verde 로고" style={{ height: '60px' }} />
+          <div style={{
+            position: 'relative',
+            width: '420px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end'
+          }}>
+            <div style={{ position: 'relative', width: '320px' }}>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={handleSearchKeyPress}
+                placeholder="종 이름을 입력하세요 (예: 판다, 호랑이, panda, tiger)"
+                style={{
+                  width: '100%',
+                  backgroundColor: '#ffffff',
+                  padding: '12px 40px 12px 20px',
+                  border: '1px solid #d0d0d0',
+                  borderRadius: '25px',
+                  fontSize: '14px',
+                  outline: 'none',
+                  color: '#333',
+                  boxSizing: 'border-box'
+                }}
+              />
+              <Search
+                size={18}
+                style={{
+                  position: 'absolute',
+                  right: '15px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  cursor: 'pointer',
+                  color: '#666'
+                }}
+                onClick={handleSearch}
+              />
+            </div>
+            {filteredCountries !== null && (
+              <button
+                onClick={clearSearch}
+                style={{
+                  position: 'absolute',
+                  left: '0',
+                  padding: '8px 16px',
+                  backgroundColor: '#f0f0f0',
+                  border: '1px solid #d0d0d0',
+                  borderRadius: '20px',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  color: '#666',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                초기화 ✕
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -288,21 +255,21 @@ const HomePage = () => {
       <div style={{
         backgroundColor: '#f5faf5',
         borderRadius: '40px',
-        padding: '20px 90px 45px',
+        padding: '20px 40px 45px',
         minHeight: '85vh',
         display: 'flex',
-        gap: '68px'
+        gap: '30px'
       }}>
         <div style={{ flex: 1 }}>
           <div style={{ marginBottom: '30px' }}>
-            <h2 style={{ 
-              color: '#2f6b2d', 
-              fontSize: '18px', 
-              marginBottom: '16px' 
+            <h2 style={{
+              color: '#2f6b2d',
+              fontSize: '18px',
+              marginBottom: '16px'
             }}>
               # 카테고리 선택
             </h2>
-            <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '20px' }}>
               {categories.map((cat) => (
                 <button
                   key={cat}
@@ -316,8 +283,8 @@ const HomePage = () => {
                     cursor: 'pointer',
                     backgroundColor: category === cat ? '#c8e6c9' : '#ffffff',
                     color: category === cat ? '#2f6b2d' : '#5a5a5a',
-                    boxShadow: category === cat 
-                      ? '0 3px 8px rgb(255, 255, 255)' 
+                    boxShadow: category === cat
+                      ? '0 3px 8px rgb(255, 255, 255)'
                       : '0 2px 4px rgb(255, 255, 255)',
                     transition: 'all 0.3s'
                   }}
@@ -330,17 +297,17 @@ const HomePage = () => {
           </div>
 
           <div>
-            <h2 style={{ 
-              color: '#2f6b2d', 
-              fontSize: '18px', 
-              marginBottom: '16px' 
+            <h2 style={{
+              color: '#2f6b2d',
+              fontSize: '18px',
+              marginBottom: '16px'
             }}>
               # 세계 지도
             </h2>
-            <p style={{ 
-              fontSize: '13px', 
-              color: '#7f8d7b', 
-              marginBottom: '8px' 
+            <p style={{
+              fontSize: '13px',
+              color: '#7f8d7b',
+              marginBottom: '8px'
             }}>
               ** 지역을 선택하면 {category} 카테고리에 맞는 생물들이 카드로 나타나요!
             </p>
@@ -356,11 +323,13 @@ const HomePage = () => {
             }}>
               <InteractiveDottedMap
                 width={800}
-                height={400}
-                dotSpacing={2}
-                dotRadius={1.0}
-                dotColor="#6B8E6F"
-                highlightColor="#2D5A2F"
+                height={460}
+                dotSpacing={4}
+                dotRadius={1.8}
+                dotColor="#728C87"
+                highlightColor="#4D625E"
+                category={category}
+                filteredCountries={filteredCountries}
                 onCountryClick={handleCountryClick}
               />
             </div>
@@ -371,11 +340,11 @@ const HomePage = () => {
           display: 'flex',
           flexDirection: 'column',
           gap: '16px',
-          minWidth: '400px'
+          minWidth: '360px'
         }}>
           <div style={{
             backgroundColor: '#ffffff',
-            height: '80px',
+            height: '60px',
             borderRadius: '25px',
             boxShadow: '0 2px 8px rgba(150, 180, 150, 0.15)',
             padding: '20px',
@@ -387,42 +356,46 @@ const HomePage = () => {
             justifyContent: 'center',
             alignItems: 'center'
           }}
-          
-          onClick={() => {/* 모달 열기 로직 추가 필요 */}}
-          onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(150, 180, 150, 0.25)'}
-          onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(150, 180, 150, 0.15)'}
+
+            onClick={() => {/* 모달 열기 로직 추가 필요 */ }}
+            onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(150, 180, 150, 0.25)'}
+            onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(150, 180, 150, 0.15)'}
           >
-            <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '5px' }}>
-              오늘의 랜덤 생물 소개!
+            <p style={{ fontSize: '18px', fontWeight: '600'}}>
+              👀
+              아직 정보가 없어요!
             </p>
-            <p style={{ fontSize: '12px', color: '#808d7c' }}>자세히 보기</p>
           </div>
 
           <div style={{
             backgroundColor: '#ffffff',
-            height: '80px',
+            height: '60px',
             borderRadius: '25px',
             boxShadow: '0 2px 8px rgba(150, 180, 150, 0.15)',
             padding: '20px',
             textAlign: 'center',
             cursor: 'pointer',
-            transition: 'box-shadow 0.3s'
+            transition: 'box-shadow 0.3s',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center'
           }}
-          onClick={() => {/* 모달 열기 로직 추가 필요 */}}
-          onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(150, 180, 150, 0.25)'}
-          onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(150, 180, 150, 0.15)'}
+            onClick={() => {/* 모달 열기 로직 추가 필요 */ }}
+            onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(150, 180, 150, 0.25)'}
+            onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(150, 180, 150, 0.15)'}
           >
-            <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '5px' }}>
-              가장 많이 언급되는 멸종 위기종?
+            <p style={{ fontSize: '18px', fontWeight: '600'}}>
+              👀
+              아직 정보가 없어요!
             </p>
-            <p style={{ fontSize: '12px', color: '#808d7c' }}>자세히 보기</p>
           </div>
 
           <div>
-            <h2 style={{ 
-              color: '#2f6b2d', 
-              fontSize: '18px', 
-              marginBottom: '16px' 
+            <h2 style={{
+              color: '#2f6b2d',
+              fontSize: '18px',
+              marginBottom: '16px'
             }}>
               # Verde 실시간 검색어
             </h2>
@@ -461,7 +434,7 @@ const HomePage = () => {
         </div>
       </div>
 
-      {isModalOpen && currentData && (
+      {isModalOpen && selectedLocation && (
         <div style={{
           position: 'fixed',
           inset: 0,
@@ -482,8 +455,8 @@ const HomePage = () => {
             padding: '40px',
             backgroundColor: '#ffffff',
             borderColor: theme.border === 'border-green-200' ? '#bbf7d0' :
-                        theme.border === 'border-amber-200' ? '#D8CFBD' :
-                        theme.border === 'border-yellow-200' ? '#FFECB2' : '#CCE0F3'
+              theme.border === 'border-amber-200' ? '#D8CFBD' :
+                theme.border === 'border-yellow-200' ? '#FFECB2' : '#CCE0F3'
           }}>
             <button
               onClick={closeModal}
@@ -509,18 +482,21 @@ const HomePage = () => {
 
             <div style={{ marginBottom: '24px' }}>
               <h2 className={theme.title} style={{
-              fontSize: '24px',
-              fontWeight: 'bold',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginBottom: '12px',
-              color: '#1d1d1d'
+                fontSize: '24px',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '12px',
+                color: '#1d1d1d'
               }}>
-              <span style={{ fontSize: '32px' }}>{theme.icon}</span>
-              {currentData.name}의 생물 다양성 - {category}
+                <span style={{ fontSize: '32px' }}>{theme.icon}</span>
+                {selectedLocation.name}의 생물 다양성 - {category}
               </h2>
-              <button 
+              <p style={{ fontSize: '13px', color: '#7f8d7b', marginBottom: '8px' }}>
+                📍 위치: {selectedLocation.lat.toFixed(2)}°, {selectedLocation.lng.toFixed(2)}°
+              </p>
+              <button
                 className={theme.button}
                 onClick={goToEndangeredView}
                 style={{
@@ -531,8 +507,8 @@ const HomePage = () => {
                   fontWeight: '500',
                   cursor: 'pointer',
                   backgroundColor: theme.button.includes('green') ? '#bbf7d0' :
-                                  theme.button.includes('amber') ? '#D8CFBD' :
-                                  theme.button.includes('yellow') ? '#FFECB2' : '#CCE0F3',
+                    theme.button.includes('amber') ? '#D8CFBD' :
+                      theme.button.includes('yellow') ? '#FFECB2' : '#CCE0F3',
                   transition: 'background 0.2s'
                 }}>
                 멸종위기 종류 보기
@@ -540,104 +516,135 @@ const HomePage = () => {
             </div>
             {modalView === 'species' && (
               <>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: '16px',
-                  marginBottom: '24px'
-                }}>
-                  {currentSpeciesData.map((species) => (
-                    <div
-                      key={species.id}
-                      style={{
-                        backgroundColor: '#ffffff',
-                        borderRadius: '16px',
-                        overflow: 'hidden',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'scale(1.05)';
-                        e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.15)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'scale(1)';
-                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(87, 87, 87, 0.1)';
-                      }}
-                    >
-                      <div style={{
-                        height: '140px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '64px',
-                        background: 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)'
-                      }}>
-                        {species.image}
-                      </div>
-                      <div style={{ padding: '12px', textAlign: 'center' }}>
-                        <p style={{ fontWeight: '500', color: '#1f2937' }}>{species.name}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}> 
-                  {speciesPage > 0 ? (
-                    <button 
-                      className={theme.button} 
-                      onClick={handlePrevPage}
-                      style={{
-                        padding: '10px 24px',
-                        borderRadius: '20px',
-                        border: 'none',
-                        fontSize: '16px',
-                        fontWeight: '500',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        backgroundColor: 'transparent',
-                        transition: 'background 0.2s',
-                        color: '#555' 
-                      }}>
-                      <ChevronRight style={{ width: '16px', height: '16px', transform: 'rotate(180deg)' }} />
-                      이전으로
-                    </button>
-                  ) : (
-                    <div style={{ minWidth: '100px', height: '16px' }}></div> 
-                  )}
-                  {speciesPage < totalSpeciesPages - 1 ? (
-                    <button 
-                      className={theme.button} 
-                      onClick={handleNextPage}
-                      style={{
-                        padding: '10px 24px',
-                        borderRadius: '20px',
-                        border: 'none',
-                        fontSize: '16px',
-                        fontWeight: '500',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        backgroundColor: 'transparent',
-                        transition: 'background 0.2s'
-                      }}>
-                      다음으로
-                      <ChevronRight style={{ width: '16px', height: '16px' }} />
-                    </button>
-                  ) : (
-                    <div style={{ minWidth: '100px', height: '16px' }}></div>
-                  )}
+                {/* 로딩 상태 */}
+                {isLoading && <SpeciesCardSkeletonGrid count={3} />}
 
-                </div>
+                {/* 에러 상태 */}
+                {!isLoading && error && (
+                  <ErrorMessage message={error} onRetry={handleRetry} />
+                )}
+
+                {/* 데이터 표시 */}
+                {!isLoading && !error && (
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: '16px',
+                    marginBottom: '24px'
+                  }}>
+                    {currentSpeciesData.map((species) => (
+                      <div
+                        key={species.id}
+                        style={{
+                          backgroundColor: '#ffffff',
+                          borderRadius: '16px',
+                          overflow: 'hidden',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                          cursor: 'pointer',
+                          transition: 'all 0.3s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'scale(1.05)';
+                          e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.15)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(87, 87, 87, 0.1)';
+                        }}
+                      >
+                        <div style={{
+                          height: '180px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          overflow: 'hidden',
+                          background: 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)'
+                        }}>
+                          {species.image && species.image.startsWith('http') ? (
+                            <img
+                              src={species.image}
+                              alt={species.name}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover'
+                              }}
+                              onError={(e) => {
+                                // 이미지 로드 실패 시 회색 배경 표시
+                                e.target.style.display = 'none';
+                                e.target.parentElement.style.background = '#e5e7eb';
+                                e.target.parentElement.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:48px;color:#9ca3af;">📷</div>`;
+                              }}
+                            />
+                          ) : (
+                            <div style={{ fontSize: '64px' }}>{species.image}</div>
+                          )}
+                        </div>
+                        <div style={{ padding: '12px', textAlign: 'center' }}>
+                          <p style={{ fontWeight: '500', color: '#1f2937' }}>{species.name}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* 페이지네이션 버튼 - 로딩 중이거나 에러일 때는 숨김 */}
+                {!isLoading && !error && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    {speciesPage > 0 ? (
+                      <button
+                        className={theme.button}
+                        onClick={handlePrevPage}
+                        style={{
+                          padding: '10px 24px',
+                          borderRadius: '20px',
+                          border: 'none',
+                          fontSize: '16px',
+                          fontWeight: '500',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          backgroundColor: 'transparent',
+                          transition: 'background 0.2s',
+                          color: '#555'
+                        }}>
+                        <ChevronRight style={{ width: '16px', height: '16px', transform: 'rotate(180deg)' }} />
+                        이전으로
+                      </button>
+                    ) : (
+                      <div style={{ minWidth: '100px', height: '16px' }}></div>
+                    )}
+                    {speciesPage < totalPages - 1 ? (
+                      <button
+                        className={theme.button}
+                        onClick={handleNextPage}
+                        style={{
+                          padding: '10px 24px',
+                          borderRadius: '20px',
+                          border: 'none',
+                          fontSize: '16px',
+                          fontWeight: '500',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          backgroundColor: 'transparent',
+                          transition: 'background 0.2s'
+                        }}>
+                        다음으로
+                        <ChevronRight style={{ width: '16px', height: '16px' }} />
+                      </button>
+                    ) : (
+                      <div style={{ minWidth: '100px', height: '16px' }}></div>
+                    )}
+                  </div>
+                )}
               </>
             )}
             {modalView === 'endangered' && (
-              <div style={{ 
-                padding: '40px', 
-                textAlign: 'center', 
+              <div style={{
+                padding: '40px',
+                textAlign: 'center',
                 minHeight: '300px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -647,11 +654,11 @@ const HomePage = () => {
                 borderRadius: '15px'
               }}>
                 <h3 style={{
-                  color: '#747F60', 
-                  fontSize: '20px', 
+                  color: '#747F60',
+                  fontSize: '20px',
                   marginBottom: '15px'
                 }}>
-                  {currentData.name}의 멸종 위기종 목록
+                  {selectedLocation.name}의 멸종 위기종 목록
                 </h3>
                 <p style={{ color: '#666', marginBottom: '25px' }}>
                   이 섹션에서는 해당 국가의 멸종 위기종에 대한 상세 정보를 제공할 예정입니다.
@@ -675,28 +682,32 @@ const HomePage = () => {
                 </button>
               </div>
             )}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              gap: '8px',
-              marginTop: '16px'
-            }}>
-              {Array.from({ length: totalSpeciesPages }).map((_, index) => (
-                <div 
-                  key={index}
-                  style={{
-                    width: '12px',
-                    height: '12px',
-                    borderRadius: '50%',
-                    backgroundColor: speciesPage === index ? 
-                                    (theme.button.includes('green') ? '#bbf7d0' :
-                                    theme.button.includes('amber') ? '#D8CFBD' :
-                                    theme.button.includes('yellow') ? '#FFECB2' : '#CCE0F3')
-                                    : '#d1d5db'
-                  }}
-                ></div>
-              ))}
-            </div>
+
+            {/* 페이지 인디케이터 - 데이터가 있을 때만 표시 */}
+            {!isLoading && !error && totalPages > 0 && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '8px',
+                marginTop: '16px'
+              }}>
+                {Array.from({ length: totalPages }).map((_, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '50%',
+                      backgroundColor: speciesPage === index ?
+                        (theme.button.includes('green') ? '#bbf7d0' :
+                          theme.button.includes('amber') ? '#D8CFBD' :
+                            theme.button.includes('yellow') ? '#FFECB2' : '#CCE0F3')
+                        : '#d1d5db'
+                    }}
+                  ></div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

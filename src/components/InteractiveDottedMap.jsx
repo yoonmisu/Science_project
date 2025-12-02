@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
+import { getColorIntensity } from '../data/biodiversityData';
 
 // ISO Alpha-2 국가 코드 매핑 (200+ countries)
 const countryNameToISO = {
@@ -68,8 +69,10 @@ const InteractiveDottedMap = ({
   height = 400,
   dotSpacing = 3,
   dotRadius = 1.5,
-  dotColor = '#6B8E6F',
-  highlightColor = '#2D5A2F',
+  dotColor = '#9CA3AF',        // 회색 계열 (gray-400)
+  highlightColor = '#374151',   // 진한 회색 (gray-700)
+  category = null,              // 카테고리 (동물, 식물, 곤충, 해양생물)
+  filteredCountries = null,     // 필터링된 국가 목록 (null = 전체, array = 특정 국가들만)
   onCountryClick
 }) => {
   const svgRef = useRef(null);
@@ -77,6 +80,7 @@ const InteractiveDottedMap = ({
   const [flagPosition, setFlagPosition] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [dots, setDots] = useState([]);
+  const [projection, setProjection] = useState(null); // 좌표 변환용
 
   // 색상 ID 생성 함수 (소수 기반 분산)
   const idToColor = (id) => {
@@ -105,10 +109,13 @@ const InteractiveDottedMap = ({
 
         if (!isMounted) return;
 
-        const projection = d3.geoEquirectangular()
+        const geoProjection = d3.geoEquirectangular()
           .fitSize([width, height], { type: 'Sphere' });
 
-        const path = d3.geoPath().projection(projection);
+        const path = d3.geoPath().projection(geoProjection);
+
+        // projection을 state에 저장 (클릭 시 좌표 변환용)
+        setProjection(() => geoProjection);
 
         // === Hidden Canvas 생성 ===
         const canvas = document.createElement('canvas');
@@ -313,32 +320,64 @@ const InteractiveDottedMap = ({
         ref={svgRef}
         width={width}
         height={height}
-        style={{ display: 'block', background: '#f9f9f9' }}
+        style={{ display: 'block', background: '#ffffff' }}
       >
-        {dots.map((dot, i) => (
-          <circle
-            key={i}
-            cx={dot.x}
-            cy={dot.y}
-            r={dotRadius}
-            fill={hoveredCountry === dot.countryCode ? highlightColor : dotColor}
-            className={`dot-${dot.countryClass}`}
-            style={{ cursor: 'pointer' }}
-            onMouseEnter={() => {
-              setHoveredCountry(dot.countryCode);
-              setFlagPosition({ x: dot.x, y: dot.y, code: dot.countryCode });
-            }}
-            onMouseLeave={() => {
-              setHoveredCountry(null);
-              setFlagPosition(null);
-            }}
-            onClick={() => {
-              if (onCountryClick) {
-                onCountryClick({ code: dot.countryCode, name: dot.countryName });
-              }
-            }}
-          />
-        ))}
+        {dots.map((dot, i) => {
+          // 카테고리별 색상 계산 (ISO Alpha-2 코드를 대문자로 변환)
+          const countryCodeUpper = dot.countryCode?.toUpperCase();
+
+          // 필터링 체크: filteredCountries가 있으면 해당 국가만 표시
+          const isFiltered = filteredCountries !== null &&
+                            filteredCountries.length > 0 &&
+                            !filteredCountries.includes(countryCodeUpper);
+
+          // 필터링된 국가는 회색으로 표시
+          let baseDotColor;
+          if (isFiltered) {
+            baseDotColor = '#e5e7eb'; // 매우 연한 회색 (보이지만 강조되지 않음)
+          } else {
+            baseDotColor = category && countryCodeUpper
+              ? getColorIntensity(category, countryCodeUpper)
+              : dotColor;
+          }
+
+          return (
+            <circle
+              key={i}
+              cx={dot.x}
+              cy={dot.y}
+              r={dotRadius}
+              fill={hoveredCountry === dot.countryCode ? highlightColor : baseDotColor}
+              className={`dot-${dot.countryClass}`}
+              style={{
+                cursor: isFiltered ? 'default' : 'pointer',
+                opacity: isFiltered ? 0.3 : 1
+              }}
+              onMouseEnter={() => {
+                if (!isFiltered) {
+                  setHoveredCountry(dot.countryCode);
+                  setFlagPosition({ x: dot.x, y: dot.y, code: dot.countryCode });
+                }
+              }}
+              onMouseLeave={() => {
+                setHoveredCountry(null);
+                setFlagPosition(null);
+              }}
+              onClick={() => {
+                if (!isFiltered && onCountryClick && projection) {
+                  // SVG 좌표를 지리 좌표로 변환
+                  const [lng, lat] = projection.invert([dot.x, dot.y]);
+                  onCountryClick({
+                    code: dot.countryCode,
+                    name: dot.countryName,
+                    lat: lat,
+                    lng: lng
+                  });
+                }
+              }}
+            />
+          );
+        })}
       </svg>
 
       {flagPosition && (

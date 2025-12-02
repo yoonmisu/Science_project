@@ -12,6 +12,37 @@ dist
 dist-ssr
 *.local
 
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Python virtual environment
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+verde-backend/.env
+
+# Backup files
+*.backup
+*.backup-*
+*-backup-*
+
+# Documentation (temporary/generated)
+*_FIX.md
+*_GUIDE.md
+*_SUMMARY.md
+*_COMPLETE.md
+*_OPTIMIZATION.md
+*_IMPROVEMENTS.md
+*_STEPS.md
+*_SPEC.md
+*_SETUP_GUIDE.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
