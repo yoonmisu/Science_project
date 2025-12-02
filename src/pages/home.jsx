@@ -249,6 +249,7 @@ const HomePage = () => {
               placeholder="나라이름과 카테고리명을 꼭 넣어서 검색해요..."
               style={{
                 width: '320px',
+                backgroundColor:' #ffffff',
                 padding: '12px 40px 12px 20px',
                 border: '1px solid #d0d0d0',
                 borderRadius: '25px',
