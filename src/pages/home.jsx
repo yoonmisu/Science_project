@@ -234,7 +234,7 @@ const HomePage = () => {
       minHeight: '100vh', 
       fontFamily: 'Pretendard, sans-serif',
       color: '#2e3d2f',
-      padding: '0 50px'
+      padding: '0 30px'
     }}>
       <div style={{ padding: '20px 0' }}>
         <div style={{ 
@@ -272,10 +272,10 @@ const HomePage = () => {
       <div style={{
         backgroundColor: '#f5faf5',
         borderRadius: '40px',
-        padding: '20px 90px 45px',
+        padding: '20px 40px 45px',
         minHeight: '85vh',
         display: 'flex',
-        gap: '68px'
+        gap: '30px'
       }}>
         <div style={{ flex: 1 }}>
           <div style={{ marginBottom: '30px' }}>
@@ -286,7 +286,7 @@ const HomePage = () => {
             }}>
               # 카테고리 선택
             </h2>
-            <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '20px' }}>
               {categories.map((cat) => (
                 <button
                   key={cat}
@@ -334,9 +334,10 @@ const HomePage = () => {
               boxShadow: '0 3px 6px rgba(150, 180, 150, 0.2)',
               padding: '40px',
               position: 'relative',
-              height: '450px'
+              width: '840px',
+              height: '410px'
             }}>
-              <img src={mapImg} alt="세계지도" style={{ width: '800px', height: '460px' }}/>
+              <img src={mapImg} alt="세계지도" style={{ width: '840px', height: '410px' }}/>
                 <button
                   onClick={() => handleCountryClick('korea')}
                   onMouseEnter={() => setHoveredCountry('korea')}
@@ -411,11 +412,11 @@ const HomePage = () => {
           display: 'flex',
           flexDirection: 'column',
           gap: '16px',
-          minWidth: '400px'
+          minWidth: '360px'
         }}>
           <div style={{
             backgroundColor: '#ffffff',
-            height: '80px',
+            height: '60px',
             borderRadius: '25px',
             boxShadow: '0 2px 8px rgba(150, 180, 150, 0.15)',
             padding: '20px',
@@ -432,30 +433,34 @@ const HomePage = () => {
           onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(150, 180, 150, 0.25)'}
           onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(150, 180, 150, 0.15)'}
           >
-            <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '5px' }}>
-              오늘의 랜덤 생물 소개!
+            <p style={{ fontSize: '18px', fontWeight: '600'}}>
+              👀
+              아직 정보가 없어요!
             </p>
-            <p style={{ fontSize: '12px', color: '#808d7c' }}>자세히 보기</p>
           </div>
 
           <div style={{
             backgroundColor: '#ffffff',
-            height: '80px',
+            height: '60px',
             borderRadius: '25px',
             boxShadow: '0 2px 8px rgba(150, 180, 150, 0.15)',
             padding: '20px',
             textAlign: 'center',
             cursor: 'pointer',
-            transition: 'box-shadow 0.3s'
+            transition: 'box-shadow 0.3s',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center'
           }}
           onClick={() => {/* 모달 열기 로직 추가 필요 */}}
           onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(150, 180, 150, 0.25)'}
           onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(150, 180, 150, 0.15)'}
           >
-            <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '5px' }}>
-              가장 많이 언급되는 멸종 위기종?
+            <p style={{ fontSize: '18px', fontWeight: '600'}}>
+              👀
+              아직 정보가 없어요!
             </p>
-            <p style={{ fontSize: '12px', color: '#808d7c' }}>자세히 보기</p>
           </div>
 
           <div>
