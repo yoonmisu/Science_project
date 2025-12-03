@@ -3,9 +3,9 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: light;
+  color: #2e3d2f;
+  background-color: #ffffff;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -27,6 +27,7 @@ body {
   display: block;
   min-width: 320px;
   min-height: 100vh;
+  background-color: #ffffff;
 }
 
 
@@ -55,15 +56,36 @@ button:focus-visible {
 }
 
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+/* 국기 이모지 컨테이너 스타일 */
+.flag-emoji-container {
+  isolation: isolate;
+}
+
+.flag-emoji-container span {
+  /* 이모지만 표시, 대체 텍스트 완전 제거 */
+  font-variant-emoji: emoji;
+  font-feature-settings: normal;
+  -webkit-font-feature-settings: normal;
+  text-indent: 0;
+  letter-spacing: normal;
+  word-spacing: normal;
+}
+
+.flag-emoji-container::before,
+.flag-emoji-container::after,
+.flag-emoji-container span::before,
+.flag-emoji-container span::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* 로딩 스피너 애니메이션 */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
   }
-  a:hover {
-    color: #E8F7CE;
-  }
-  button {
-    background-color: #f9f9f9;
+  100% {
+    transform: rotate(360deg);
   }
 }
+
