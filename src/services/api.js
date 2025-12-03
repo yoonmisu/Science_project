@@ -150,6 +150,10 @@ export const fetchSpeciesByCountry = async (countryCode, category, page = 1, lim
 /**
  * 좌표 기반 생물 종 조회 (전 세계 지원)
  *
+ * ⚠️ 사용되지 않음: 실제로는 국가 코드 기반 조회(fetchSpeciesByCountry)만 사용됩니다.
+ * 좌표 정보는 UI 표시용으로만 사용되며, API 호출에는 사용되지 않습니다.
+ *
+ * @deprecated 이 함수는 더 이상 사용되지 않습니다. fetchSpeciesByCountry를 사용하세요.
  * @param {number} lat - 위도 (-90 ~ 90)
  * @param {number} lng - 경도 (-180 ~ 180)
  * @param {string} category - 카테고리
@@ -158,6 +162,8 @@ export const fetchSpeciesByCountry = async (countryCode, category, page = 1, lim
  * @returns {Promise<Object>} { data: [], total, page, totalPages, country }
  */
 export const fetchSpeciesByLocation = async (lat, lng, category, page = 1, limit = 3) => {
+  console.warn('⚠️ fetchSpeciesByLocation은 더 이상 사용되지 않습니다. fetchSpeciesByCountry를 사용하세요.');
+
   try {
     console.log(`🌍 좌표 기반 API 호출: (${lat}, ${lng}) - ${category}`);
 

@@ -11,7 +11,7 @@ const HomePage = () => {
   console.log('🏠 HomePage 컴포넌트 초기화 중...');
 
   const [category, setCategory] = useState('동물');
-  const [selectedLocation, setSelectedLocation] = useState(null); // { lat, lng, name, countryCode }
+  const [selectedLocation, setSelectedLocation] = useState(null); // { name, countryCode }
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [modalView, setModalView] = useState('species');
@@ -139,18 +139,16 @@ const HomePage = () => {
     loadSpeciesData();
   }, [selectedLocation?.countryCode, category, speciesPage, isModalOpen, modalView]);
 
-  // InteractiveDottedMap 콜백: { name, code, lat, lng} 객체를 받음
+  // InteractiveDottedMap 콜백: { name, code } 객체를 받음 (좌표 정보는 제거됨)
   const handleCountryClick = (location) => {
     console.log(`🗺️ 지도 클릭 이벤트 발생!`);
     console.log('받은 location 데이터:', location);
-    console.log(`국가: ${location.name}, 코드: ${location.code}, 좌표: (${location.lat.toFixed(2)}, ${location.lng.toFixed(2)})`);
+    console.log(`국가: ${location.name}, 코드: ${location.code}`);
 
-    // 위치 정보 + 국가 코드를 저장하고 모달 열기
+    // 국가 정보만 저장하고 모달 열기 (좌표는 실제로 사용하지 않으므로 제거)
     const newLocation = {
-      lat: location.lat,
-      lng: location.lng,
       name: location.name,
-      countryCode: location.code // 빠른 조회를 위한 국가 코드
+      countryCode: location.code
     };
 
     console.log('설정할 selectedLocation:', newLocation);
@@ -722,9 +720,6 @@ const HomePage = () => {
                 <span style={{ fontSize: '32px' }}>{theme.icon}</span>
                 {selectedLocation.name}의 생물 다양성 - {category}
               </h2>
-              <p style={{ fontSize: '13px', color: '#7f8d7b', marginBottom: '8px' }}>
-                📍 위치: {selectedLocation.lat.toFixed(2)}°, {selectedLocation.lng.toFixed(2)}°
-              </p>
               <button
                 className={theme.button}
                 onClick={goToEndangeredView}
