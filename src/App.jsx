@@ -1,5 +1,7 @@
 import React, { useState, useEffect, Component } from "react";
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from "./pages/home.jsx";
+import Landing from "./pages/landing.jsx";
 import "./App.css";
 
 // Error Boundary 컴포넌트
@@ -66,44 +68,42 @@ class ErrorBoundary extends Component {
 }
 
 const App = () => {
-  const [message, setMessage] = useState("Connecting...");
-  const [isReady, setIsReady] = useState(false);
-  const [error, setError] = useState(null);
+  const [backendMessage, setBackendMessage] = useState("백엔드 연결 시도 중...");
 
   useEffect(() => {
-    console.log("🚀 App.jsx: useEffect 실행됨");
+    console.log("🚀 App.jsx: 백엔드 연결 체크 시작");
 
-    // 백엔드 연결 체크 (간소화)
-    const checkBackend = async () => {
-      try {
-        console.log("📡 백엔드 연결 시도 중...");
-        const res = await fetch("http://127.0.0.1:8000/");
-        const data = await res.json();
-        setMessage(data.message || "Connected");
+    fetch("http://127.0.0.1:8000/")
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data) => {
         console.log("✅ 백엔드 연결 성공:", data.message);
-      } catch (err) {
-        console.warn("⚠️ 백엔드 연결 실패 (계속 진행):", err.message);
-        setMessage("백엔드 연결 실패 (오프라인 모드)");
-      } finally {
-        // 백엔드 연결 실패해도 페이지는 표시
-        setIsReady(true);
-        console.log("✅ isReady = true");
-      }
-    };
-
-    // 즉시 페이지 표시하고 백그라운드에서 백엔드 체크
-    setIsReady(true);
-    checkBackend();
+        setBackendMessage(data.message || "백엔드에서 메시지를 성공적으로 받음");
+      })
+      .catch((err) => {
+        console.error("⚠️ 백엔드 연결 실패:", err);
+        setBackendMessage("🚨 백엔드 연결 실패 (URL/서버 상태 확인 필요)");
+      });
   }, []);
-
-  console.log("🎨 App.jsx: 렌더링 중... isReady =", isReady, "message =", message);
-
-  // 에러 바운더리 - Home 컴포넌트를 ErrorBoundary로 감싸기
-  console.log("🏠 Home 컴포넌트 렌더링 시도 중...");
 
   return (
     <ErrorBoundary>
-      <Home backendMessage={message} />
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/"
+            element={<Landing/>}
+          />
+          <Route
+            path="/Home"
+            element={<Home backendStatus={backendMessage}/>}
+          />
+        </Routes>
+      </BrowserRouter>
     </ErrorBoundary>
   );
 };
