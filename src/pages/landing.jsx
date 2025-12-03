@@ -48,10 +48,11 @@ const CtaButton = styled.button`
   text-decoration: none;
   display: inline-block;
 
-  background-color: ${VARS.verdeLight};
-  color: ${VARS.textDark};
+  background-color: #747F60;
+  color: ${VARS.textLight};
   &:hover {
-    background-color: #747F60;
+    background-color:${VARS.verdeLight};
+    color: #747F60
   }
 
   ${props =>
@@ -82,6 +83,22 @@ const HeroSection = styled.section`
   }
   .brand-name {
     color: ${VARS.verdeDark};
+  }
+`;
+
+const TestimonialCard = styled.div`
+  background-color: ${VARS.textLight};
+  padding: 25px;
+  border-radius: 15px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+  width: 440px;
+  transition: transform 0.3s, box-shadow 0.3s;
+  text-align: left;
+  border: 1px solid ${VARS.verdeLight};
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
   }
 `;
 
@@ -120,14 +137,14 @@ const FeaturesSection = styled.section`
   .testimonial-row {
     display: flex;
     justify-content: center;
-    gap: 80px;
+    gap: 30px;
     margin-top: 40px;
     flex-wrap: wrap;
   }
 
   .testimonial-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     text-align: left;
   }
   .avatar {
@@ -161,9 +178,11 @@ const Footer = styled.footer`
     gap: 10px;
 
     .verde-logo {
+      font-size: 40px;
+      font-weight: 700;
+      color: ${VARS.verdeDark};
+      filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.2));
       height: 40px;
-      width: auto;
-      filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.4));
     }
 
     p {
@@ -195,9 +214,9 @@ const Footer = styled.footer`
     }
 
     .copyright {
-      color : #67728A
+      color : #67728A;
       font-size: 12px;
-      opacity: 0.6;
+      opacity: 0.8;
       margin-top: 20px;
     }
   }
@@ -209,7 +228,7 @@ const LandingPage = () => {
     <div className="verde-landing">
       <Header>
         <nav>
-          <p>== Welcome this is landing page! ==</p>
+          <p>== Welcome! This is landing page! ==</p>
         </nav>
       </Header>
 
@@ -225,7 +244,6 @@ const LandingPage = () => {
       </HeroSection>
 
       <FeaturesSection>
-        <h2>== 주요 기능 ==</h2>
         <div className="feature-grid">
           <div className="feature-item">
             <div className="icon-circle">🍃</div>
@@ -245,25 +263,31 @@ const LandingPage = () => {
         </div>
 
         <div className="testimonial-row">
-        <div className="testimonial-item">
-            <img src={misu} alt="미수 윤" className="avatar" />
-        <div>
-        <span className="name">Yoonmisu</span>
-        <p className="quote">"Verde 덕분에 전 세계의 멸종 위기 동물을 알게 되어서 좋았어요"</p>
-        </div>
-        </div>
-        <div className="testimonial-item">
-        <img src={jaejun} alt="재준 윤" className="avatar" />
-        <div>
-        <span className="name">Yoonjaejun</span>
-        <p className="quote">"생물 수업 시간에 이렇게 시각화 된 웹을 보면서 더 이해가 잘 됐어요"</p>
-        </div>
-        </div>
+          <TestimonialCard>
+            <div className="testimonial-item">
+                <img src={misu} alt="미수 윤" className="avatar" />
+            <div>
+            <span className="name">Yoonmisu</span>
+            <p className="quote">"Verde 덕분에 전 세계의 멸종 위기 동물을 알게 되어서 좋았어요"</p>
+            </div>
+            </div>
+          </TestimonialCard>
+        
+          <TestimonialCard>
+            <div className="testimonial-item">
+            <img src={jaejun} alt="재준 윤" className="avatar" />
+            <div>
+            <span className="name">Yoonjaejun</span>
+            <p className="quote">"생물 수업 시간에 이렇게 시각화 된 웹을 보면서 더 이해가 잘 됐어요"</p>
+            </div>
+            </div>
+          </TestimonialCard>
         </div>
       </FeaturesSection>
+
       <Footer>
         <div className="footer-left">
-          <img src={logo} alt="Verde Logo" className="verde-logo" />
+          <img src={logo} alt="Verde Logo" className="verde-logo" /> 
           <p>UX/UI, Frontend : 25_42@bssm.hs.kr</p>
           <p>AI, Backend : 25_43@bssm.hs.kr</p>
         </div>
