@@ -16,6 +16,9 @@ except ImportError:
     print("⚠️ pycountry_convert not installed. Continent fallback will use manual mapping.")
 
 class IUCNService:
+    # 육상 척추동물 클래스 (포유류, 조류, 파충류, 양서류)
+    TERRESTRIAL_VERTEBRATE_CLASSES = ['MAMMALIA', 'AVES', 'REPTILIA', 'AMPHIBIA']
+    
     def __init__(self):
         # ========================================
         # v4 API 설정 (Cloudflare 우회)
@@ -37,6 +40,9 @@ class IUCNService:
         # 종별 데이터 캐시 (학명 기반, LRU)
         self.species_cache: Dict[str, Dict[str, Any]] = {}
         self.cache_ttl = timedelta(hours=1)
+        
+        # IP별 마지막 검색어 캐시 (중복 검색 방지용)
+        self.last_search_cache: Dict[str, str] = {}
     
     async def _make_request(self, url: str, params: dict = None) -> Any:
         """
@@ -288,12 +294,16 @@ class IUCNService:
         print(f"⚠️ 대륙 매핑 실패: '{country_code}' (알 수 없는 국가)")
         return None
 
-    async def get_species_by_country(self, country_code: str) -> List[Dict[str, Any]]:
+    async def get_species_by_country(self, country_code: str, category: str = None) -> List[Dict[str, Any]]:
         """
         Hybrid Lookup Pattern: 국가별 큐레이션된 종 리스트 + 실시간 v4 API 조회
 
         v4 API는 국가별 엔드포인트를 제공하지 않으므로,
         사전 정의된 대표 종 리스트를 기반으로 실시간 데이터를 병렬 조회합니다.
+
+        Args:
+            country_code: 국가 코드 (ISO Alpha-2)
+            category: 카테고리 필터 (동물, 식물, 곤충, 해양생물) - None이면 모든 카테고리
 
         이점:
         - 목록은 큐레이션되지만, 멸종위기 등급과 정보는 항상 최신 상태
@@ -307,7 +317,7 @@ class IUCNService:
             original_input = country_code
             print(f"\n{'='*60}")
             print(f"[ENTRY] get_species_by_country 시작")
-            print(f"  입력값: '{original_input}'")
+            print(f"  입력값: '{original_input}', 카테고리: '{category}'")
 
             # ========================================
             # 1. 국가 코드 정규화 (Russia -> RU 변환 등)
@@ -324,14 +334,15 @@ class IUCNService:
             print(f"  정규화: '{original_input}' -> '{country_code}'")
 
             # ========================================
-            # 2. 캐시 확인
+            # 2. 캐시 확인 (카테고리별 캐시)
             # ========================================
-            if country_code in self.country_cache:
-                cache_entry = self.country_cache[country_code]
+            cache_key = f"{country_code}_{category or 'all'}"
+            if cache_key in self.country_cache:
+                cache_entry = self.country_cache[cache_key]
                 cache_time = cache_entry.get('timestamp')
                 if cache_time and datetime.now() - cache_time < self.cache_ttl:
                     cached_data = cache_entry.get('data', [])
-                    print(f"💾 캐시 히트: {country_code}")
+                    print(f"💾 캐시 히트: {cache_key}")
                     print(f"[RETURN] 캐시된 데이터 반환 (type: {type(cached_data)}, len: {len(cached_data)})")
                     print(f"{'='*60}\n")
                     return cached_data
@@ -339,9 +350,39 @@ class IUCNService:
             # ========================================
             # [LOG 2/5 - Lookup] COUNTRY_SPECIES_MAP 조회
             # ========================================
-            species_list = COUNTRY_SPECIES_MAP.get(country_code)
+            country_data = COUNTRY_SPECIES_MAP.get(country_code)
 
-            if species_list is None:
+            # 카테고리별 조회 지원 (dict 구조 vs list 구조)
+            species_list = None
+            species_category_map = {}  # 학명 -> 카테고리 매핑
+
+            if isinstance(country_data, dict):
+                # 새로운 카테고리 구조: {"동물": [...], "식물": [...], ...}
+                if category and category in country_data:
+                    # 특정 카테고리만 반환
+                    species_list = country_data[category]
+                    for species in species_list:
+                        species_category_map[species] = category
+                elif category:
+                    # 요청된 카테고리가 없으면 빈 리스트
+                    species_list = []
+                else:
+                    # 카테고리 지정 없으면 모든 종 반환
+                    species_list = []
+                    for category_name, category_species in country_data.items():
+                        species_list.extend(category_species)
+                        for species in category_species:
+                            species_category_map[species] = category_name
+            elif isinstance(country_data, list):
+                # 기존 리스트 구조 (동물만)
+                if category and category != "동물":
+                    species_list = []  # 동물 외 카테고리 요청 시 빈 리스트
+                else:
+                    species_list = country_data
+                    for species in species_list:
+                        species_category_map[species] = "동물"
+
+            if species_list is None or len(species_list) == 0:
                 # ========================================
                 # Regional Fallback Pattern 적용
                 # 특정 국가 데이터가 없으면 대륙 데이터로 fallback
@@ -392,7 +433,12 @@ class IUCNService:
                         cache_entry = self.species_cache[scientific_name]
                         cache_time = cache_entry.get('timestamp')
                         if cache_time and datetime.now() - cache_time < self.cache_ttl:
-                            return cache_entry.get('data')
+                            cached_data = cache_entry.get('data')
+                            if cached_data:
+                                # 캐시된 데이터의 카테고리를 현재 요청의 카테고리로 덮어씀
+                                cached_data = cached_data.copy()
+                                cached_data['category'] = species_category_map.get(scientific_name, "동물")
+                                return cached_data
 
                     # v4 API 호출 (3초 타임아웃)
                     v4_data = await asyncio.wait_for(
@@ -431,11 +477,14 @@ class IUCNService:
                     # Wikipedia 이미지가 있으면 사용, 없으면 빈 문자열 (프론트엔드에서 이모지 표시)
                     image_url = wiki_info.get("image_url", "") if wiki_info.get("image_url") else ""
 
+                    # 카테고리 정보 가져오기 (species_category_map에서)
+                    species_category = species_category_map.get(scientific_name, "동물")
+
                     result = {
                         "id": v3_data.get('taxonid'),
                         "scientific_name": scientific_name,
                         "common_name": wiki_info.get("common_name", scientific_name),
-                        "category": "동물",  # 간소화
+                        "category": species_category,  # 카테고리 매핑에서 가져옴
                         "image_url": image_url,
                         "description": wiki_info.get("description", f"IUCN Red List Category: {v3_data.get('category', 'Unknown')}"),
                         "country": country_code,
@@ -482,14 +531,26 @@ class IUCNService:
             print(f"[API END] Fetched {len(results)} results (including None/Exceptions)")
 
             # 성공한 결과만 필터링 (None과 Exception 제외)
-            species_data = [
+            species_data_raw = [
                 r for r in results
                 if r is not None and not isinstance(r, Exception)
             ]
 
+            # 중복 제거: scientific_name 기준으로 유니크한 데이터만 유지
+            seen_names = set()
+            species_data = []
+            for species in species_data_raw:
+                name = species.get('scientific_name')
+                if name and name not in seen_names:
+                    seen_names.add(name)
+                    species_data.append(species)
+                elif name:
+                    print(f"⚠️ 중복 제거: {name}")
+
             success_count = len(species_data)
             total_count = len(species_list)
-            print(f"✅ 성공: {success_count}/{total_count}개 종")
+            duplicate_count = len(species_data_raw) - len(species_data)
+            print(f"✅ 성공: {success_count}/{total_count}개 종 (중복 제거: {duplicate_count}개)")
 
             # 국가별 캐시 저장
             self.country_cache[country_code] = {

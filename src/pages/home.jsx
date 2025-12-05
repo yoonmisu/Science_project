@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, ChevronRight, Search } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 import InteractiveDottedMap from '../components/InteractiveDottedMap';
-import { categoryThemes, countryNames, endangeredSpeciesCount } from '../data/biodiversityData';
-import { fetchSpeciesByCountry, searchSpeciesByName, fetchTrendingSearches, fetchSpeciesDetail } from '../services/api';
+import { categoryThemes, countryNames, endangeredSpeciesCount, updateSpeciesCount } from '../data/biodiversityData';
+import { fetchSpeciesByCountry, searchSpeciesByName, fetchTrendingSearches, fetchSpeciesDetail, fetchAllCountriesSpeciesCount } from '../services/api';
 import { SpeciesCardSkeletonGrid } from '../components/SpeciesCardSkeleton';
 import ErrorMessage from '../components/ErrorMessage';
 
@@ -26,7 +26,6 @@ const HomePage = () => {
   // 검색 기능 상태
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredCountries, setFilteredCountries] = useState(null); // null = 전체 표시, array = 필터링된 국가들
-  const [searchDebounceTimer, setSearchDebounceTimer] = useState(null);
 
   // 실시간 검색어 상태
   const [trendingSearches, setTrendingSearches] = useState([]);
@@ -69,6 +68,24 @@ const HomePage = () => {
     const interval = setInterval(loadTrendingSearches, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // 카테고리 변경 시 모든 국가의 종 개수 로드 (지도 시각화용)
+  useEffect(() => {
+    const loadAllCountriesSpeciesCount = async () => {
+      try {
+        console.log(`🗺️ 지도 시각화 데이터 로드 시작 (카테고리: ${category})`);
+        const countryCounts = await fetchAllCountriesSpeciesCount(category);
+
+        // 동적 종 개수 데이터 업데이트
+        updateSpeciesCount(countryCounts, category);
+        console.log(`✅ 지도 시각화 데이터 업데이트 완료:`, countryCounts);
+      } catch (error) {
+        console.error('❌ 지도 시각화 데이터 로드 실패:', error);
+      }
+    };
+
+    loadAllCountriesSpeciesCount();
+  }, [category]);
 
   // 키보드 단축키 (상세 정보 모달에서 ←→ 화살표, ESC)
   useEffect(() => {
@@ -252,6 +269,14 @@ const HomePage = () => {
       console.log('⚠️ 검색어 비어있음');
       // 검색어가 비어있으면 전체 표시
       setFilteredCountries(null);
+
+      // 전체 표시 시 모든 국가의 종 개수 다시 로드
+      try {
+        const countryCounts = await fetchAllCountriesSpeciesCount(category);
+        updateSpeciesCount(countryCounts, category);
+      } catch (error) {
+        console.error('❌ 종 개수 로드 실패:', error);
+      }
       return;
     }
 
@@ -270,6 +295,14 @@ const HomePage = () => {
           console.log('🔄 카테고리 변경:', category, '->', result.category);
           setCategory(result.category);
         }
+
+        // 필터링된 국가들의 실제 종 개수 업데이트 (검색 결과는 1개씩)
+        const searchResultCounts = {};
+        result.countries.forEach(countryCode => {
+          searchResultCounts[countryCode] = 1; // 검색된 종 1개씩
+        });
+        updateSpeciesCount(searchResultCounts, category);
+        console.log('📊 검색 결과 종 개수 업데이트:', searchResultCounts);
       } else {
         console.log('❌ 검색 결과 없음');
         setFilteredCountries([]);
@@ -283,36 +316,20 @@ const HomePage = () => {
     }
   };
 
-  // 디바운스된 검색 (타이핑 후 500ms 대기)
+  // 검색어 입력 핸들러 (자동 검색 없음 - Enter/아이콘 클릭에서만 검색)
   const handleSearchInput = (value) => {
     setSearchQuery(value);
 
-    // 기존 타이머 취소
-    if (searchDebounceTimer) {
-      clearTimeout(searchDebounceTimer);
-    }
-
+    // 빈 값이면 필터 초기화
     if (!value.trim()) {
       setFilteredCountries(null);
-      return;
     }
-
-    // 새 타이머 설정
-    const timer = setTimeout(() => {
-      handleSearch(value);
-    }, 500);
-
-    setSearchDebounceTimer(timer);
   };
 
-  // Enter 키로 즉시 검색
+  // Enter 키로 검색
   const handleSearchKeyDown = (e) => {
     if (e.key === 'Enter') {
       console.log('⌨️  Enter 키 눌림, 검색 시작:', searchQuery);
-      // 디바운스 타이머 취소하고 즉시 검색
-      if (searchDebounceTimer) {
-        clearTimeout(searchDebounceTimer);
-      }
       handleSearch(searchQuery);
     }
   };
@@ -376,9 +393,6 @@ const HomePage = () => {
                 }}
                 onClick={() => {
                   console.log('🔎 검색 아이콘 클릭, 검색 시작:', searchQuery);
-                  if (searchDebounceTimer) {
-                    clearTimeout(searchDebounceTimer);
-                  }
                   handleSearch(searchQuery);
                 }}
               />
@@ -482,6 +496,7 @@ const HomePage = () => {
               alignItems: 'center'
             }}>
               <InteractiveDottedMap
+                key={`map-${category}`}
                 width={800}
                 height={460}
                 dotSpacing={5}
@@ -521,7 +536,7 @@ const HomePage = () => {
             onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(150, 180, 150, 0.25)'}
             onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(150, 180, 150, 0.15)'}
           >
-            <p style={{ fontSize: '18px', fontWeight: '600'}}>
+            <p style={{ fontSize: '18px', fontWeight: '600' }}>
               👀
               아직 정보가 없어요!
             </p>
@@ -545,7 +560,7 @@ const HomePage = () => {
             onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(150, 180, 150, 0.25)'}
             onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(150, 180, 150, 0.15)'}
           >
-            <p style={{ fontSize: '18px', fontWeight: '600'}}>
+            <p style={{ fontSize: '18px', fontWeight: '600' }}>
               👀
               아직 정보가 없어요!
             </p>
@@ -748,8 +763,27 @@ const HomePage = () => {
                   <ErrorMessage message={error} onRetry={handleRetry} />
                 )}
 
+                {/* 빈 데이터 상태 */}
+                {!isLoading && !error && currentSpeciesData.length === 0 && (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '60px 20px',
+                    backgroundColor: '#f9fafb',
+                    borderRadius: '16px',
+                    marginBottom: '24px'
+                  }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>📭</div>
+                    <p style={{ fontSize: '18px', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>
+                      해당 카테고리의 데이터가 없습니다
+                    </p>
+                    <p style={{ fontSize: '14px', color: '#6b7280' }}>
+                      다른 카테고리를 선택하거나 다른 국가를 선택해보세요
+                    </p>
+                  </div>
+                )}
+
                 {/* 데이터 표시 */}
-                {!isLoading && !error && (
+                {!isLoading && !error && currentSpeciesData.length > 0 && (
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(3, 1fr)',
@@ -795,14 +829,17 @@ const HomePage = () => {
                                 objectFit: 'cover'
                               }}
                               onError={(e) => {
-                                // 이미지 로드 실패 시 동물 이모지 표시
+                                // 이미지 로드 실패 시 동물 이모지 표시 + 안내 메시지
                                 e.target.style.display = 'none';
                                 e.target.parentElement.style.background = 'linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)';
-                                e.target.parentElement.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:64px;">🦌</div>`;
+                                e.target.parentElement.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;"><div style="font-size:48px;">🦌</div><span style="font-size:11px;color:#9ca3af;margin-top:4px;">이미지 없음</span></div>`;
                               }}
                             />
                           ) : (
-                            <div style={{ fontSize: '64px' }}>🦌</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                              <div style={{ fontSize: '48px' }}>🦌</div>
+                              <span style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>이미지 없음</span>
+                            </div>
                           )}
                         </div>
                         <div style={{ padding: '12px', textAlign: 'center' }}>
@@ -1060,18 +1097,19 @@ const HomePage = () => {
                       onError={(e) => {
                         e.target.style.display = 'none';
                         e.target.parentElement.style.background = 'linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)';
-                        e.target.parentElement.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:120px;">🦌</div>`;
+                        e.target.parentElement.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;"><div style="font-size:80px;">🦌</div><span style="font-size:14px;color:#9ca3af;margin-top:8px;">이미지를 불러오지 못했습니다</span></div>`;
                       }}
                     />
                   ) : (
                     <div style={{
                       display: 'flex',
+                      flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      height: '100%',
-                      fontSize: '120px'
+                      height: '100%'
                     }}>
-                      🦌
+                      <div style={{ fontSize: '80px' }}>🦌</div>
+                      <span style={{ fontSize: '14px', color: '#9ca3af', marginTop: '8px' }}>이미지를 불러오지 못했습니다</span>
                     </div>
                   )}
                 </div>
@@ -1105,23 +1143,23 @@ const HomePage = () => {
                         borderRadius: '12px',
                         backgroundColor:
                           speciesDetail.status === 'CR' ? '#fee2e2' :
-                          speciesDetail.status === 'EN' ? '#fed7aa' :
-                          speciesDetail.status === 'VU' ? '#fef3c7' :
-                          '#dbeafe',
+                            speciesDetail.status === 'EN' ? '#fed7aa' :
+                              speciesDetail.status === 'VU' ? '#fef3c7' :
+                                '#dbeafe',
                         color:
                           speciesDetail.status === 'CR' ? '#991b1b' :
-                          speciesDetail.status === 'EN' ? '#9a3412' :
-                          speciesDetail.status === 'VU' ? '#854d0e' :
-                          '#1e40af',
+                            speciesDetail.status === 'EN' ? '#9a3412' :
+                              speciesDetail.status === 'VU' ? '#854d0e' :
+                                '#1e40af',
                         fontSize: '14px',
                         fontWeight: '600'
                       }}>
                         {speciesDetail.status === 'CR' ? '심각한 멸종위기 (CR)' :
-                         speciesDetail.status === 'EN' ? '멸종위기 (EN)' :
-                         speciesDetail.status === 'VU' ? '취약 (VU)' :
-                         speciesDetail.status === 'NT' ? '준위협 (NT)' :
-                         speciesDetail.status === 'LC' ? '관심대상 (LC)' :
-                         speciesDetail.status}
+                          speciesDetail.status === 'EN' ? '멸종위기 (EN)' :
+                            speciesDetail.status === 'VU' ? '취약 (VU)' :
+                              speciesDetail.status === 'NT' ? '준위협 (NT)' :
+                                speciesDetail.status === 'LC' ? '관심대상 (LC)' :
+                                  speciesDetail.status}
                       </div>
                     )}
                   </div>

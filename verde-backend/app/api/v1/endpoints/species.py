@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, Depends
+from fastapi import APIRouter, Query, Depends, Request
 from typing import Optional, Dict, Any, List
 from app.services.iucn_service import iucn_service
 from app.database import get_db
@@ -10,40 +10,108 @@ import difflib
 
 router = APIRouter()
 
-# 한글-영문 종 이름 매핑
+# 한글-영문 종 이름 매핑 (확장된 버전)
 SPECIES_TRANSLATIONS = {
-    # 동물
-    '판다': ['panda', 'giant panda', 'ailuropoda'],
-    '팬더': ['panda', 'giant panda', 'ailuropoda'],
+    # 동물 (포유류)
+    '판다': ['panda', 'giant panda', 'ailuropoda melanoleuca'],
+    '팬더': ['panda', 'giant panda', 'ailuropoda melanoleuca'],
     '호랑이': ['tiger', 'panthera tigris', 'amur tiger', 'siberian tiger'],
     '타이거': ['tiger', 'panthera tigris'],
-    '곰': ['bear', 'ursus', 'grizzly', 'polar'],
+    '곰': ['bear', 'ursus', 'grizzly', 'polar bear'],
     '베어': ['bear', 'ursus'],
-    '두루미': ['crane', 'grus', 'red-crowned'],
-    '크레인': ['crane', 'grus'],
-    '독수리': ['eagle', 'haliaeetus', 'bald eagle'],
-    '이글': ['eagle', 'haliaeetus'],
+    '흑곰': ['black bear', 'ursus thibetanus', 'asiatic black bear'],
+    '북극곰': ['polar bear', 'ursus maritimus'],
     '사자': ['lion', 'panthera leo'],
     '라이언': ['lion', 'panthera leo'],
     '코끼리': ['elephant', 'elephas', 'loxodonta'],
     '엘리펀트': ['elephant'],
-    '기린': ['giraffe', 'giraffa'],
-    '고릴라': ['gorilla'],
-    '침팬지': ['chimpanzee', 'pan'],
-    '늑대': ['wolf', 'canis lupus'],
-    '여우': ['fox', 'vulpes'],
+    '기린': ['giraffe', 'giraffa camelopardalis'],
+    '고릴라': ['gorilla', 'gorilla gorilla'],
+    '침팬지': ['chimpanzee', 'pan troglodytes'],
+    '늑대': ['wolf', 'canis lupus', 'grey wolf'],
+    '여우': ['fox', 'vulpes vulpes'],
     '표범': ['leopard', 'panthera pardus'],
-    '치타': ['cheetah', 'acinonyx'],
-    '하이에나': ['hyena', 'crocuta'],
-    '악어': ['crocodile', 'alligator'],
-    '펭귄': ['penguin', 'aptenodytes'],
-    '돌고래': ['dolphin', 'delphinus'],
-    '고래': ['whale', 'balaenoptera'],
-    '상어': ['shark', 'carcharodon'],
-    '물개': ['seal', 'phoca'],
-    '바다표범': ['seal', 'leopard seal'],
+    '치타': ['cheetah', 'acinonyx jubatus'],
+    '하이에나': ['hyena', 'crocuta crocuta'],
     '캥거루': ['kangaroo', 'macropus'],
-    '코알라': ['koala', 'phascolarctos'],
+    '코알라': ['koala', 'phascolarctos cinereus'],
+    '수달': ['otter', 'lutra lutra'],
+    '너구리': ['raccoon dog', 'nyctereutes'],
+    '오랑우탄': ['orangutan', 'pongo'],
+    '산양': ['wild goat', 'naemorhedus', 'goral'],
+    '사슴': ['deer', 'cervus', 'cervidae'],
+    '영양': ['antelope', 'gazelle'],
+    '재규어': ['jaguar', 'panthera onca'],
+    '퓨마': ['puma', 'cougar', 'puma concolor'],
+    '스라소니': ['lynx', 'lynx lynx'],
+    '바이슨': ['bison', 'bison bison'],
+    '들소': ['buffalo', 'bubalus', 'bison'],
+    '하마': ['hippopotamus', 'hippopotamus amphibius'],
+    '코뿔소': ['rhinoceros', 'rhino', 'diceros', 'ceratotherium'],
+    
+    # 조류
+    '두루미': ['crane', 'grus japonensis', 'red-crowned crane'],
+    '크레인': ['crane', 'grus'],
+    '독수리': ['eagle', 'haliaeetus', 'bald eagle', 'aquila'],
+    '이글': ['eagle', 'haliaeetus'],
+    '황새': ['stork', 'ciconia', 'white stork'],
+    '따오기': ['crested ibis', 'nipponia nippon'],
+    '콘도르': ['condor', 'gymnogyps', 'vultur'],
+    '올빼미': ['owl', 'bubo', 'strix'],
+    '부엉이': ['owl', 'bubo bubo', 'eagle owl'],
+    '매': ['falcon', 'falco', 'falco peregrinus'],
+    '솔개': ['kite', 'milvus'],
+    '펭귄': ['penguin', 'aptenodytes', 'spheniscidae'],
+    '앵무새': ['parrot', 'ara', 'psittacidae'],
+    '플라밍고': ['flamingo', 'phoenicopterus'],
+    
+    # 해양생물
+    '돌고래': ['dolphin', 'delphinus', 'tursiops'],
+    '고래': ['whale', 'balaenoptera', 'cetacea'],
+    '흰수염고래': ['blue whale', 'balaenoptera musculus'],
+    '향유고래': ['sperm whale', 'physeter'],
+    '혹등고래': ['humpback whale', 'megaptera novaeangliae'],
+    '상어': ['shark', 'carcharodon', 'carcharodon carcharias'],
+    '백상아리': ['great white shark', 'carcharodon carcharias'],
+    '물개': ['seal', 'phoca', 'phocidae'],
+    '바다표범': ['seal', 'leopard seal', 'phoca vitulina'],
+    '바다사자': ['sea lion', 'otariidae'],
+    '해마': ['seahorse', 'hippocampus'],
+    '거북이': ['turtle', 'sea turtle', 'chelonia mydas'],
+    '바다거북': ['sea turtle', 'chelonia', 'caretta caretta'],
+    '듀공': ['dugong', 'dugong dugon'],
+    '매너티': ['manatee', 'trichechus'],
+    '해파리': ['jellyfish', 'cnidaria'],
+    
+    # 파충류/양서류
+    '악어': ['crocodile', 'crocodylus', 'alligator'],
+    '도마뱀': ['lizard', 'lacertilia'],
+    '이구아나': ['iguana'],
+    '뱀': ['snake', 'serpentes'],
+    '개구리': ['frog', 'anura', 'rana'],
+    '도롱뇽': ['salamander', 'salamandridae'],
+    '아홀로틀': ['axolotl', 'ambystoma mexicanum'],
+    
+    # 곤충
+    '나비': ['butterfly', 'lepidoptera', 'papilionidae'],
+    '호랑나비': ['swallowtail', 'papilio'],
+    '모르포나비': ['morpho butterfly', 'morpho'],
+    '딱정벌레': ['beetle', 'coleoptera'],
+    '사슴벌레': ['stag beetle', 'lucanus', 'lucanidae'],
+    '장수풍뎅이': ['hercules beetle', 'dynastes', 'rhinoceros beetle'],
+    '반딧불이': ['firefly', 'lampyridae'],
+    '벌': ['bee', 'apis', 'apidae'],
+    '잠자리': ['dragonfly', 'odonata'],
+    
+    # 식물
+    '소나무': ['pine', 'pinus'],
+    '전나무': ['fir', 'abies'],
+    '삼나무': ['cedar', 'cedrus'],
+    '단풍나무': ['maple', 'acer'],
+    '벚나무': ['cherry tree', 'prunus'],
+    '목련': ['magnolia', 'magnolia sieboldii'],
+    '난초': ['orchid', 'orchidaceae'],
+    '진달래': ['azalea', 'rhododendron'],
 }
 
 @router.get("", response_model=Dict[str, Any])
@@ -60,12 +128,20 @@ async def get_species(
     if not country:
         return {"data": [], "total": 0, "page": page, "totalPages": 0}
 
-    # IUCN API + Wikipedia API 호출
-    species_list = await iucn_service.get_species_by_country(country)
+    # IUCN API + Wikipedia API 호출 (카테고리 필터링 적용)
+    species_list = await iucn_service.get_species_by_country(country, category)
 
-    # 카테고리 필터링
-    if category and category != "동물":
-        species_list = [s for s in species_list if s.get("category") == category]
+    # API 호출 결과가 None인 경우 처리
+    if species_list is None:
+        return {
+            "data": [],
+            "total": 0,
+            "page": page,
+            "totalPages": 0,
+            "message": f"해당 국가({country})의 데이터를 불러올 수 없습니다."
+        }
+
+    # 카테고리 필터링은 iucn_service에서 이미 처리됨
 
     total = len(species_list)
 
@@ -80,7 +156,8 @@ async def get_species(
         "data": paginated_list,
         "total": total,
         "page": page,
-        "totalPages": total_pages
+        "totalPages": total_pages,
+        "message": "데이터가 없습니다." if total == 0 else None
     }
 
 def fuzzy_match(query: str, target: str, threshold: float = 0.6) -> bool:
@@ -112,6 +189,7 @@ def translate_query(query: str) -> List[str]:
 
 @router.get("/search", response_model=Dict[str, Any])
 async def search_species(
+    request: Request,  # IP 추출용
     query: str = Query(..., min_length=1),
     category: Optional[str] = None,
     db: Session = Depends(get_db)
@@ -122,8 +200,12 @@ async def search_species(
     - 오타 허용 (퍼지 매칭)
     - 부분 일치 지원
     - 매칭된 종의 카테고리 정보 반환
+    - IP 기반 중복 검색 제외 (통계)
     """
     print(f"🔍 검색 요청: '{query}' (카테고리: {category})")
+    
+    # 클라이언트 IP 추출
+    client_ip = request.client.host if request.client else "unknown"
 
     # 한글을 영문으로 번역
     search_terms = translate_query(query)
@@ -135,11 +217,8 @@ async def search_species(
     matched_category = None  # 매칭된 종의 카테고리
 
     for country_code in test_countries:
-        species_list = await iucn_service.get_species_by_country(country_code)
-
-        # 카테고리 필터링
-        if category and category != "동물":
-            species_list = [s for s in species_list if s.get("category") == category]
+        # 카테고리 필터링이 iucn_service에서 처리됨
+        species_list = await iucn_service.get_species_by_country(country_code, category)
 
         # 종 이름으로 검색 (common_name, scientific_name)
         for species in species_list:
@@ -156,9 +235,9 @@ async def search_species(
                     found = True
                     break
 
-                # 2. 퍼지 매칭 (오타 허용)
-                if fuzzy_match(term_lower, common_name, threshold=0.65) or \
-                   fuzzy_match(term_lower, scientific_name, threshold=0.65):
+                # 2. 퍼지 매칭 (오타 허용, threshold 낮춤)
+                if fuzzy_match(term_lower, common_name, threshold=0.55) or \
+                   fuzzy_match(term_lower, scientific_name, threshold=0.55):
                     found = True
                     break
 
@@ -173,19 +252,29 @@ async def search_species(
 
     print(f"🎯 최종 결과: {len(matching_countries)}개 국가 - {matching_countries} (카테고리: {matched_category})")
 
-    # 검색 기록 저장
-    try:
-        search_record = SearchHistory(
-            query=query,
-            category=matched_category,
-            result_count=len(matching_countries)
-        )
-        db.add(search_record)
-        db.commit()
-        print(f"💾 검색 기록 저장: '{query}' (결과: {len(matching_countries)}개)")
-    except Exception as e:
-        print(f"⚠️ 검색 기록 저장 실패: {e}")
-        db.rollback()
+    # IP 기반 중복 검색 확인 (같은 IP에서 동일 검색어 연속 입력 시 카운트 제외)
+    last_query = iucn_service.last_search_cache.get(client_ip)
+    is_duplicate = last_query and last_query.lower() == query.lower()
+    
+    # 마지막 검색어 업데이트
+    iucn_service.last_search_cache[client_ip] = query
+
+    # 검색 기록 저장 (중복이 아닌 경우에만)
+    if not is_duplicate:
+        try:
+            search_record = SearchHistory(
+                query=query,
+                category=matched_category,
+                result_count=len(matching_countries)
+            )
+            db.add(search_record)
+            db.commit()
+            print(f"💾 검색 기록 저장: '{query}' (결과: {len(matching_countries)}개)")
+        except Exception as e:
+            print(f"⚠️ 검색 기록 저장 실패: {e}")
+            db.rollback()
+    else:
+        print(f"🔄 중복 검색 (IP: {client_ip}): '{query}' - 통계 제외")
 
     return {
         "query": query,
@@ -246,6 +335,97 @@ async def get_trending_searches(
             "total": 0
         }
 
+@router.get("/random-daily", response_model=Dict[str, Any])
+async def get_daily_random_species():
+    """
+    오늘의 랜덤 종을 조회합니다.
+    날짜 기반 시드를 사용하여 하루 동안 같은 종이 반환됩니다.
+    """
+    import hashlib
+    from datetime import date
+    from app.services.country_species_map import COUNTRY_SPECIES_MAP
+    
+    try:
+        # 날짜 기반 시드 생성 (같은 날에는 같은 종 반환)
+        today = date.today().isoformat()
+        seed = int(hashlib.md5(today.encode()).hexdigest(), 16)
+        
+        # 모든 종 목록 수집
+        all_species = []
+        for country_code, country_data in COUNTRY_SPECIES_MAP.items():
+            if isinstance(country_data, dict):
+                for category, species_list in country_data.items():
+                    if isinstance(species_list, list):
+                        all_species.extend(species_list)
+        
+        if not all_species:
+            return {"error": "No species available", "species": None}
+        
+        # 중복 제거
+        unique_species = list(set(all_species))
+        
+        # 날짜 기반 랜덤 선택
+        selected_index = seed % len(unique_species)
+        selected_species_name = unique_species[selected_index]
+        
+        print(f"🎲 오늘의 랜덤 종: {selected_species_name}")
+        
+        # 종 상세 정보 조회 (캐시된 데이터 사용)
+        # 간단한 응답 반환 (상세 정보는 클라이언트에서 별도 조회)
+        return {
+            "date": today,
+            "scientific_name": selected_species_name,
+            "message": "Species of the Day"
+        }
+        
+    except Exception as e:
+        print(f"❌ 오늘의 랜덤 종 조회 실패: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e), "species": None}
+
+@router.get("/weekly-top", response_model=Dict[str, Any])
+async def get_weekly_top_species(
+    db: Session = Depends(get_db)
+):
+    """
+    주간 최다 검색된 종을 조회합니다.
+    최근 7일간 가장 많이 검색된 종 이름을 반환합니다.
+    """
+    try:
+        since = datetime.utcnow() - timedelta(days=7)
+        
+        # 최근 7일간 가장 많이 검색된 쿼리 조회
+        top_search = db.query(
+            func.lower(SearchHistory.query).label('query'),
+            func.count(SearchHistory.id).label('count')
+        ).filter(
+            SearchHistory.searched_at >= since
+        ).group_by(
+            func.lower(SearchHistory.query)
+        ).order_by(
+            func.count(SearchHistory.id).desc()
+        ).first()
+        
+        if not top_search:
+            print("📊 주간 인기 종: 검색 기록 없음")
+            return {"species_name": None, "search_count": 0, "message": "No search data"}
+        
+        print(f"🔥 주간 인기 종: {top_search.query} ({top_search.count}회)")
+        
+        return {
+            "species_name": top_search.query,
+            "search_count": top_search.count,
+            "period_days": 7,
+            "message": "Species of the Week"
+        }
+        
+    except Exception as e:
+        print(f"❌ 주간 인기 종 조회 실패: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"species_name": None, "search_count": 0, "error": str(e)}
+
 @router.get("/endangered", response_model=Dict[str, Any])
 async def get_endangered_species(
     country: str = Query(..., description="국가 코드 (예: KR, US, CN)"),
@@ -304,6 +484,102 @@ async def get_endangered_species(
             "page": page,
             "totalPages": 0
         }
+
+@router.get("/stats/countries", response_model=Dict[str, Any])
+async def get_all_countries_species_count(
+    category: Optional[str] = None
+):
+    """
+    전 세계 모든 국가의 종 개수를 조회합니다 (지도 시각화용).
+
+    국가별 데이터가 없으면 대륙별 fallback 사용
+    Regional Fallback Pattern으로 전 세계 모든 국가 커버
+
+    Args:
+        category: 카테고리 필터 (선택사항, 기본값: '동물')
+
+    Returns:
+        { 'KR': 10, 'US': 15, 'RU': 8, ... }
+    """
+    try:
+        from app.services.country_species_map import COUNTRY_SPECIES_MAP, CONTINENT_SPECIES_MAP
+
+        category = category or "동물"
+        print(f"📊 전 세계 국가의 종 개수 조회 시작 (카테고리: {category})")
+
+        # ISO Alpha-2 전체 국가 목록 (195개국)
+        all_countries = [
+            # 아시아
+            'KR', 'KP', 'JP', 'CN', 'TW', 'HK', 'MO', 'MN', 'VN', 'TH', 'LA', 'KH', 'MM', 'MY',
+            'SG', 'BN', 'ID', 'PH', 'TL', 'IN', 'PK', 'BD', 'LK', 'NP', 'BT', 'MV', 'AF', 'IR',
+            'IQ', 'SY', 'LB', 'JO', 'IL', 'PS', 'SA', 'YE', 'OM', 'AE', 'QA', 'BH', 'KW', 'TR',
+            'CY', 'GE', 'AM', 'AZ', 'KZ', 'UZ', 'TM', 'KG', 'TJ',
+
+            # 유럽
+            'GB', 'IE', 'FR', 'ES', 'PT', 'AD', 'MC', 'IT', 'SM', 'VA', 'MT', 'GR', 'AL', 'MK',
+            'RS', 'ME', 'BA', 'HR', 'SI', 'BG', 'RO', 'MD', 'UA', 'BY', 'LT', 'LV', 'EE', 'PL',
+            'CZ', 'SK', 'HU', 'AT', 'CH', 'LI', 'DE', 'NL', 'BE', 'LU', 'DK', 'SE', 'NO', 'FI',
+            'IS', 'RU',
+
+            # 아프리카
+            'EG', 'LY', 'TN', 'DZ', 'MA', 'EH', 'MR', 'ML', 'NE', 'TD', 'SD', 'SS', 'ER', 'DJ',
+            'SO', 'ET', 'KE', 'UG', 'RW', 'BI', 'TZ', 'MZ', 'MW', 'ZM', 'ZW', 'BW', 'NA', 'ZA',
+            'LS', 'SZ', 'AO', 'CD', 'CG', 'GA', 'GQ', 'CM', 'CF', 'ST', 'GH', 'TG', 'BJ', 'NG',
+            'SN', 'GM', 'GW', 'GN', 'SL', 'LR', 'CI', 'BF', 'CV', 'SC', 'KM', 'MU', 'MG',
+
+            # 북미
+            'US', 'CA', 'MX', 'GT', 'BZ', 'SV', 'HN', 'NI', 'CR', 'PA', 'CU', 'JM', 'HT', 'DO',
+            'BS', 'TT', 'BB', 'GD', 'LC', 'VC', 'AG', 'DM', 'KN', 'PR',
+
+            # 남미
+            'CO', 'VE', 'GY', 'SR', 'BR', 'EC', 'PE', 'BO', 'PY', 'UY', 'AR', 'CL',
+
+            # 오세아니아
+            'AU', 'NZ', 'PG', 'FJ', 'SB', 'VU', 'WS', 'TO', 'KI', 'TV', 'NR', 'PW', 'FM', 'MH'
+        ]
+
+        country_counts = {}
+
+        # 최적화: COUNTRY_SPECIES_MAP에서 직접 개수 계산 (API 호출 없음 - 즉시 응답)
+        for country_code, country_data in COUNTRY_SPECIES_MAP.items():
+            if isinstance(country_data, dict):
+                # 카테고리별 구조: {"동물": [...], "식물": [...], ...}
+                if category in country_data:
+                    country_counts[country_code] = len(country_data[category])
+                else:
+                    country_counts[country_code] = 0
+            elif isinstance(country_data, list):
+                # 기존 리스트 구조 (동물만)
+                if category == "동물":
+                    country_counts[country_code] = len(country_data)
+                else:
+                    country_counts[country_code] = 0
+
+        # 추가: 나머지 국가들은 Regional Fallback으로 대륙 데이터 개수 사용
+        for country_code in all_countries:
+            if country_code not in country_counts:
+                # 대륙 코드 획득
+                continent_code = iucn_service._get_continent_code(country_code)
+
+                if continent_code and continent_code in CONTINENT_SPECIES_MAP:
+                    continent_data = CONTINENT_SPECIES_MAP[continent_code]
+                    if isinstance(continent_data, dict) and category in continent_data:
+                        country_counts[country_code] = len(continent_data[category])
+                    elif isinstance(continent_data, list) and category == "동물":
+                        country_counts[country_code] = len(continent_data)
+                    else:
+                        country_counts[country_code] = 0
+                else:
+                    country_counts[country_code] = 0
+
+        print(f"✅ [최적화] 종 개수 계산 완료: {len(country_counts)}개 국가")
+
+        return country_counts
+    except Exception as e:
+        print(f"❌ 국가별 종 개수 조회 실패: {e}")
+        import traceback
+        traceback.print_exc()
+        return {}
 
 @router.get("/{species_id}", response_model=Dict[str, Any])
 async def get_species_detail(species_id: int):

@@ -67,35 +67,19 @@ const apiRequest = async (endpoint, options = {}) => {
     headers['Authorization'] = `Bearer ${API_KEY}`;
   }
 
-  const fullUrl = `${BASE_URL}${endpoint}`;
-  console.log('🌐 API 요청 시작:', fullUrl);
-  console.log('📋 요청 헤더:', headers);
-
   try {
-    const response = await fetch(fullUrl, {
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
       ...options,
       headers,
     });
 
-    console.log('📥 응답 상태:', response.status, response.statusText);
-
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ API 오류 응답:', errorText);
-      throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
+      throw new Error(`API Error: ${response.status} ${response.statusText}`);
     }
 
-    const jsonData = await response.json();
-    console.log('✅ JSON 파싱 성공:', jsonData);
-    return jsonData;
+    return await response.json();
   } catch (error) {
-    console.error('❌ API Request Failed:', error);
-    console.error('❌ 에러 상세:', {
-      message: error.message,
-      stack: error.stack,
-      endpoint: endpoint,
-      fullUrl: fullUrl
-    });
+    console.error('API Request Failed:', error);
     throw error;
   }
 };
@@ -150,10 +134,6 @@ export const fetchSpeciesByCountry = async (countryCode, category, page = 1, lim
 /**
  * 좌표 기반 생물 종 조회 (전 세계 지원)
  *
- * ⚠️ 사용되지 않음: 실제로는 국가 코드 기반 조회(fetchSpeciesByCountry)만 사용됩니다.
- * 좌표 정보는 UI 표시용으로만 사용되며, API 호출에는 사용되지 않습니다.
- *
- * @deprecated 이 함수는 더 이상 사용되지 않습니다. fetchSpeciesByCountry를 사용하세요.
  * @param {number} lat - 위도 (-90 ~ 90)
  * @param {number} lng - 경도 (-180 ~ 180)
  * @param {string} category - 카테고리
@@ -162,8 +142,6 @@ export const fetchSpeciesByCountry = async (countryCode, category, page = 1, lim
  * @returns {Promise<Object>} { data: [], total, page, totalPages, country }
  */
 export const fetchSpeciesByLocation = async (lat, lng, category, page = 1, limit = 3) => {
-  console.warn('⚠️ fetchSpeciesByLocation은 더 이상 사용되지 않습니다. fetchSpeciesByCountry를 사용하세요.');
-
   try {
     console.log(`🌍 좌표 기반 API 호출: (${lat}, ${lng}) - ${category}`);
 
@@ -282,51 +260,32 @@ export const fetchEndangeredSpecies = async (countryCode, category = null, page 
 };
 
 /**
- * 오늘의 랜덤 생물 조회
+ * 랜덤 생물 조회
  *
- * @returns {Promise<Object>} 오늘의 랜덤 생물 정보
+ * ⚠️ 미구현 기능: 백엔드에 /api/v1/species/random 엔드포인트 추가 필요
+ *
+ * @returns {Promise<Object>} 랜덤 생물 정보
  */
-export const fetchDailyRandomSpecies = async () => {
+export const fetchRandomSpecies = async () => {
   try {
-    console.log('🎲 오늘의 랜덤 생물 조회 중...');
+    console.log('🎲 랜덤 생물 조회 중...');
 
-    const response = await apiRequest('/api/v1/species/random-daily');
+    const response = await apiRequest('/api/v1/species/random');
 
-    console.log(`✅ 오늘의 랜덤 생물: ${response.scientific_name}`);
+    console.log(`✅ 랜덤 생물 수신: ${response.name}`);
 
     return {
-      scientificName: response.scientific_name,
-      date: response.date,
-      message: response.message,
+      id: response.id,
+      name: response.name,
+      category: response.category,
+      country: response.country,
+      image: response.image || '🌱',
+      color: response.color || 'green',
+      description: response.description,
     };
   } catch (error) {
-    console.error('❌ fetchDailyRandomSpecies 오류:', error);
-    return null;
-  }
-};
-
-/**
- * 주간 인기 생물 조회
- *
- * @returns {Promise<Object>} 주간 최다 검색 생물 정보
- */
-export const fetchWeeklyTopSpecies = async () => {
-  try {
-    console.log('🔥 주간 인기 생물 조회 중...');
-
-    const response = await apiRequest('/api/v1/species/weekly-top');
-
-    console.log(`✅ 주간 인기 생물: ${response.species_name} (${response.search_count}회)`);
-
-    return {
-      speciesName: response.species_name,
-      searchCount: response.search_count,
-      periodDays: response.period_days,
-      message: response.message,
-    };
-  } catch (error) {
-    console.error('❌ fetchWeeklyTopSpecies 오류:', error);
-    return null;
+    console.error('❌ fetchRandomSpecies 오류:', error);
+    throw error;
   }
 };
 
@@ -482,31 +441,6 @@ export const fetchTrendingSearches = async (limit = 7, hours = 24) => {
       periodHours: hours,
       total: 0,
     };
-  }
-};
-
-/**
- * 모든 국가의 종 개수 조회 (지도 시각화용)
- *
- * @param {string} category - 카테고리 (예: '동물', '식물')
- * @returns {Promise<Object>} { 'KR': 10, 'US': 15, ... }
- */
-export const fetchAllCountriesSpeciesCount = async (category = '동물') => {
-  try {
-    console.log(`📊 모든 국가의 종 개수 조회 (카테고리: ${category})`);
-
-    const params = new URLSearchParams({
-      category: category,
-    });
-
-    const response = await apiRequest(`/api/v1/species/stats/countries?${params}`);
-
-    console.log(`✅ 국가별 종 개수 수신:`, response);
-
-    return response;
-  } catch (error) {
-    console.error('❌ fetchAllCountriesSpeciesCount 오류:', error);
-    return {};
   }
 };
 

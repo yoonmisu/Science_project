@@ -3,456 +3,1227 @@ Country-Species Mapping for IUCN Red List
 Curated list of representative endangered species by country
 """
 
+# ========================================
 # 국가별 대표 멸종위기종 학명 리스트
-# 각 국가당 10-20개 종의 학명을 정의
+# ========================================
+# 카테고리: 동물, 식물, 곤충, 해양생물
+# 각 국가당 카테고리별 5-10개 종의 학명을 정의
+# ========================================
+
 COUNTRY_SPECIES_MAP = {
-    "KR": [
-        # 한국 대표 멸종위기종
-        "Grus japonensis",          # 두루미 (Red-crowned Crane)
-        "Naemorhedus caudatus",     # 산양 (Long-tailed Goral)
-        "Ursus thibetanus",         # 반달가슴곰 (Asiatic Black Bear)
-        "Lutra lutra",              # 수달 (Eurasian Otter)
-        "Moschus moschiferus",      # 사향노루 (Siberian Musk Deer)
-        "Mustela lutreola",         # 유럽밍크 (European Mink)
-        "Falco peregrinus",         # 매 (Peregrine Falcon)
-        "Haliaeetus pelagicus",     # 흰꼬리수리 (Steller's Sea Eagle)
-        "Ciconia boyciana",         # 황새 (Oriental Stork)
-        "Pelodiscus sinensis",      # 자라 (Chinese Softshell Turtle)
-    ],
+    "KR": {
+        "동물": [
+            "Grus japonensis",
+            "Naemorhedus caudatus",
+            "Ursus thibetanus",
+            "Lutra lutra",
+            "Moschus moschiferus",
+            "Mustela lutreola",
+            "Falco peregrinus",
+            "Haliaeetus pelagicus",
+            "Ciconia boyciana",
+        ],
+        "식물": [
+            "Magnolia sieboldii",
+            "Pinus koraiensis",
+            "Taxus cuspidata",
+            "Rhododendron aureum",
+            "Abies koreana",
+        ],
+        "곤충": [
+            "Teinopalpus imperialis",
+            "Lucanus maculifemoratus",
+            "Callipogon relictus",
+            "Rosalia batesi",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
     
-    "US": [
-        # 미국 대표 멸종위기종
-        "Haliaeetus leucocephalus",  # 흰머리수리 (Bald Eagle)
-        "Ursus arctos horribilis",   # 그리즐리 곰 (Grizzly Bear)
-        "Lynx canadensis",           # 캐나다스라소니 (Canada Lynx)
-        "Puma concolor",             # 퓨마 (Cougar/Mountain Lion)
-        "Canis lupus",               # 회색늑대 (Gray Wolf)
-        "Mustela nigripes",          # 검은발족제비 (Black-footed Ferret)
-        "Grus americana",            # 아메리카두루미 (Whooping Crane)
-        "Gymnogyps californianus",   # 캘리포니아콘도르 (California Condor)
-        "Caretta caretta",           # 붉은바다거북 (Loggerhead Sea Turtle)
-        "Alligator mississippiensis", # 미시시피악어 (American Alligator)
-    ],
+    "US": {
+        "동물": [
+            "Haliaeetus leucocephalus",
+            "Ursus arctos horribilis",
+            "Lynx canadensis",
+            "Puma concolor",
+            "Canis lupus",
+            "Mustela nigripes",
+            "Grus americana",
+            "Gymnogyps californianus",
+            "Alligator mississippiensis",
+        ],
+        "식물": [
+            "Sequoia sempervirens",
+            "Pinus ponderosa",
+            "Quercus alba",
+            "Acer saccharum",
+            "Betula papyrifera",
+        ],
+        "곤충": [
+            "Dynastes tityus",
+            "Lucanus elaphus",
+            "Nicrophorus americanus",
+            "Danaus plexippus",
+        ],
+        "해양생물": [
+            "Caretta caretta",
+            "Chelonia mydas",
+            "Balaenoptera musculus",
+            "Carcharodon carcharias",
+            "Megaptera novaeangliae",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Dugong dugon",
+        ],
+    },
     
-    "JP": [
-        # 일본 대표 멸종위기종
-        "Grus japonensis",           # 두루미 (Red-crowned Crane)
-        "Ursus thibetanus",          # 반달가슴곰 (Asiatic Black Bear)
-        "Lutra lutra",               # 수달 (Eurasian Otter)
-        "Prionailurus bengalensis",  # 삵 (Leopard Cat)
-        "Nipponia nippon",           # 따오기 (Crested Ibis)
-        "Haliaeetus pelagicus",      # 흰꼬리수리 (Steller's Sea Eagle)
-        "Falco peregrinus",          # 매 (Peregrine Falcon)
-        "Dermochelys coriacea",      # 장수거북 (Leatherback Turtle)
-        "Trichechus manatus",        # 매너티 (West Indian Manatee)
-        "Balaenoptera musculus",     # 대왕고래 (Blue Whale)
-    ],
+    "JP": {
+        "동물": [
+            "Grus japonensis",
+            "Ursus thibetanus",
+            "Lutra lutra",
+            "Prionailurus bengalensis",
+            "Nipponia nippon",
+            "Haliaeetus pelagicus",
+            "Falco peregrinus",
+            "Cervus nippon",
+            "Macaca fuscata",
+        ],
+        "식물": [
+            "Magnolia sieboldii",
+            "Pinus koraiensis",
+            "Taxus cuspidata",
+            "Rhododendron aureum",
+            "Abies koreana",
+        ],
+        "곤충": [
+            "Teinopalpus imperialis",
+            "Lucanus maculifemoratus",
+            "Callipogon relictus",
+            "Rosalia batesi",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+            "Trichechus manatus",
+        ],
+    },
     
-    "CN": [
-        # 중국 대표 멸종위기종
-        "Ailuropoda melanoleuca",    # 자이언트판다 (Giant Panda)
-        "Panthera tigris amoyensis", # 남중국호랑이 (South China Tiger)
-        "Panthera uncia",            # 눈표범 (Snow Leopard)
-        "Rhinopithecus roxellana",   # 황금원숭이 (Golden Snub-nosed Monkey)
-        "Ursus thibetanus",          # 반달가슴곰 (Asiatic Black Bear)
-        "Moschus moschiferus",       # 사향노루 (Siberian Musk Deer)
-        "Grus japonensis",           # 두루미 (Red-crowned Crane)
-        "Nipponia nippon",           # 따오기 (Crested Ibis)
-        "Lipotes vexillifer",        # 양쯔강돌고래 (Baiji)
-        "Crocodylus siamensis",      # 샴악어 (Siamese Crocodile)
-    ],
+    "CN": {
+        "동물": [
+            "Ailuropoda melanoleuca",
+            "Panthera tigris amoyensis",
+            "Panthera uncia",
+            "Rhinopithecus roxellana",
+            "Ursus thibetanus",
+            "Moschus moschiferus",
+            "Grus japonensis",
+            "Nipponia nippon",
+            "Crocodylus siamensis",
+        ],
+        "식물": [
+            "Magnolia sieboldii",
+            "Pinus koraiensis",
+            "Taxus cuspidata",
+            "Rhododendron aureum",
+            "Abies koreana",
+        ],
+        "곤충": [
+            "Teinopalpus imperialis",
+            "Lucanus maculifemoratus",
+            "Callipogon relictus",
+            "Rosalia batesi",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+            "Lipotes vexillifer",
+        ],
+    },
     
-    "RU": [
-        # 러시아 대표 멸종위기종
-        "Panthera tigris altaica",   # 시베리아호랑이 (Siberian Tiger)
-        "Ursus maritimus",           # 북극곰 (Polar Bear)
-        "Panthera uncia",            # 눈표범 (Snow Leopard)
-        "Grus leucogeranus",         # 시베리아흰두루미 (Siberian Crane)
-        "Haliaeetus pelagicus",      # 흰꼬리수리 (Steller's Sea Eagle)
-        "Ursus arctos",              # 불곰 (Brown Bear)
-        "Mustela lutreola",          # 유럽밍크 (European Mink)
-        "Balaena mysticetus",        # 북극고래 (Bowhead Whale)
-        "Moschus moschiferus",       # 사향노루 (Siberian Musk Deer)
-        "Saiga tatarica",            # 사이가영양 (Saiga Antelope)
-    ],
+    "RU": {
+        "동물": [
+            "Panthera tigris altaica",
+            "Ursus maritimus",
+            "Panthera uncia",
+            "Grus leucogeranus",
+            "Haliaeetus pelagicus",
+            "Ursus arctos",
+            "Mustela lutreola",
+            "Balaena mysticetus",
+            "Moschus moschiferus",
+            "Saiga tatarica",
+        ],
+        "식물": [
+            "Magnolia sieboldii",
+            "Pinus koraiensis",
+            "Taxus cuspidata",
+            "Rhododendron aureum",
+            "Abies koreana",
+        ],
+        "곤충": [
+            "Teinopalpus imperialis",
+            "Lucanus maculifemoratus",
+            "Callipogon relictus",
+            "Rosalia batesi",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
     
-    "AU": [
-        # 호주 대표 멸종위기종
-        "Phascolarctos cinereus",    # 코알라 (Koala)
-        "Macropus rufus",            # 붉은캥거루 (Red Kangaroo)
-        "Vombatus ursinus",          # 웜뱃 (Common Wombat)
-        "Ornithorhynchus anatinus",  # 오리너구리 (Platypus)
-        "Tachyglossus aculeatus",    # 바늘두더지 (Echidna)
-        "Crocodylus porosus",        # 바다악어 (Saltwater Crocodile)
-        "Chelonia mydas",            # 푸른바다거북 (Green Sea Turtle)
-        "Carcharodon carcharias",    # 백상아리 (Great White Shark)
-        "Dugong dugon",              # 듀공 (Dugong)
-        "Dasyurus viverrinus",       # 동부쿼 (Eastern Quoll)
-    ],
+    "AU": {
+        "동물": [
+            "Phascolarctos cinereus",
+            "Macropus rufus",
+            "Vombatus ursinus",
+            "Ornithorhynchus anatinus",
+            "Tachyglossus aculeatus",
+            "Crocodylus porosus",
+            "Chelonia mydas",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+            "Dasyurus viverrinus",
+        ],
+        "식물": [
+            "Eucalyptus regnans",
+            "Acacia pycnantha",
+            "Araucaria cunninghamii",
+            "Ficus macrophylla",
+            "Banksia serrata",
+        ],
+        "곤충": [
+            "Ornithoptera alexandrae",
+            "Papilio ulysses",
+            "Phalacrognathus muelleri",
+            "Lamprima aurata",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
     
-    "BR": [
-        # 브라질 대표 멸종위기종
-        "Panthera onca",             # 재규어 (Jaguar)
-        "Tapirus terrestris",        # 맥 (Brazilian Tapir)
-        "Ara ararauna",              # 파란금강앵무 (Blue-and-yellow Macaw)
-        "Pteronura brasiliensis",    # 대수달 (Giant Otter)
-        "Myrmecophaga tridactyla",   # 큰개미핥기 (Giant Anteater)
-        "Priodontes maximus",        # 큰아르마딜로 (Giant Armadillo)
-        "Bradypus variegatus",       # 나무늘보 (Brown-throated Sloth)
-        "Leontopithecus rosalia",    # 골든라이언타마린 (Golden Lion Tamarin)
-        "Trichechus manatus",        # 매너티 (West Indian Manatee)
-        "Chelonia mydas",            # 푸른바다거북 (Green Sea Turtle)
-    ],
+    "BR": {
+        "동물": [
+            "Panthera onca",
+            "Tapirus terrestris",
+            "Ara ararauna",
+            "Pteronura brasiliensis",
+            "Myrmecophaga tridactyla",
+            "Priodontes maximus",
+            "Bradypus variegatus",
+            "Leontopithecus rosalia",
+            "Trichechus manatus",
+            "Chelonia mydas",
+        ],
+        "식물": [
+            "Bertholletia excelsa",
+            "Hevea brasiliensis",
+            "Theobroma cacao",
+            "Cinchona pubescens",
+            "Victoria amazonica",
+        ],
+        "곤충": [
+            "Dynastes hercules",
+            "Megasoma elephas",
+            "Morpho menelaus",
+            "Titanus giganteus",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
     
-    "IN": [
-        # 인도 대표 멸종위기종
-        "Panthera tigris",           # 벵골호랑이 (Bengal Tiger)
-        "Panthera leo persica",      # 아시아사자 (Asiatic Lion)
-        "Elephas maximus",           # 아시아코끼리 (Asian Elephant)
-        "Rhinoceros unicornis",      # 인도코뿔소 (Indian Rhinoceros)
-        "Panthera pardus",           # 표범 (Leopard)
-        "Ursus thibetanus",          # 반달가슴곰 (Asiatic Black Bear)
-        "Bos gaurus",                # 가울 (Gaur)
-        "Cuon alpinus",              # 붉은개 (Dhole)
-        "Gavialis gangeticus",       # 인도악어 (Gharial)
-        "Grus antigone",             # 사루스두루미 (Sarus Crane)
-    ],
+    "IN": {
+        "동물": [
+            "Panthera tigris",
+            "Panthera leo persica",
+            "Elephas maximus",
+            "Rhinoceros unicornis",
+            "Panthera pardus",
+            "Ursus thibetanus",
+            "Bos gaurus",
+            "Cuon alpinus",
+            "Gavialis gangeticus",
+            "Grus antigone",
+        ],
+        "식물": [
+            "Magnolia sieboldii",
+            "Pinus koraiensis",
+            "Taxus cuspidata",
+            "Rhododendron aureum",
+            "Abies koreana",
+        ],
+        "곤충": [
+            "Teinopalpus imperialis",
+            "Lucanus maculifemoratus",
+            "Callipogon relictus",
+            "Rosalia batesi",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
     
-    "ZA": [
-        # 남아프리카공화국 대표 멸종위기종
-        "Panthera leo",              # 사자 (Lion)
-        "Loxodonta africana",        # 아프리카코끼리 (African Elephant)
-        "Diceros bicornis",          # 검은코뿔소 (Black Rhinoceros)
-        "Ceratotherium simum",       # 흰코뿔소 (White Rhinoceros)
-        "Panthera pardus",           # 표범 (Leopard)
-        "Acinonyx jubatus",          # 치타 (Cheetah)
-        "Lycaon pictus",             # 아프리카들개 (African Wild Dog)
-        "Hippopotamus amphibius",    # 하마 (Hippopotamus)
-        "Giraffa camelopardalis",    # 기린 (Giraffe)
-        "Carcharodon carcharias",    # 백상아리 (Great White Shark)
-    ],
+    "ZA": {
+        "동물": [
+            "Panthera leo",
+            "Loxodonta africana",
+            "Diceros bicornis",
+            "Ceratotherium simum",
+            "Panthera pardus",
+            "Acinonyx jubatus",
+            "Lycaon pictus",
+            "Hippopotamus amphibius",
+            "Giraffa camelopardalis",
+            "Carcharodon carcharias",
+        ],
+        "식물": [
+            "Acacia tortilis",
+            "Adansonia digitata",
+            "Aloe vera",
+            "Euphorbia tirucalli",
+            "Commiphora myrrha",
+        ],
+        "곤충": [
+            "Goliathus goliatus",
+            "Mecynorrhina torquata",
+            "Charaxes jasius",
+            "Mylabris oculata",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "CA": [
-        # 캐나다 대표 멸종위기종
-        "Ursus maritimus",           # 북극곰 (Polar Bear)
-        "Rangifer tarandus",         # 순록 (Caribou/Reindeer)
-        "Canis lupus",               # 회색늑대 (Gray Wolf)
-        "Ursus arctos",              # 불곰 (Grizzly Bear)
-        "Lynx canadensis",           # 캐나다스라소니 (Canada Lynx)
-        "Gulo gulo",                 # 울버린 (Wolverine)
-        "Puma concolor",             # 퓨마 (Cougar)
-        "Alces alces",               # 말코손바닥사슴 (Moose)
-        "Balaena mysticetus",        # 북극고래 (Bowhead Whale)
-        "Haliaeetus leucocephalus",  # 흰머리수리 (Bald Eagle)
-    ],
+    "CA": {
+        "동물": [
+            "Ursus maritimus",
+            "Rangifer tarandus",
+            "Canis lupus",
+            "Ursus arctos",
+            "Lynx canadensis",
+            "Gulo gulo",
+            "Puma concolor",
+            "Alces alces",
+            "Balaena mysticetus",
+            "Haliaeetus leucocephalus",
+        ],
+        "식물": [
+            "Sequoia sempervirens",
+            "Pinus ponderosa",
+            "Quercus alba",
+            "Acer saccharum",
+            "Betula papyrifera",
+        ],
+        "곤충": [
+            "Dynastes tityus",
+            "Lucanus elaphus",
+            "Nicrophorus americanus",
+            "Danaus plexippus",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "MX": [
-        # 멕시코 대표 멸종위기종
-        "Panthera onca",             # 재규어 (Jaguar)
-        "Tapirus bairdii",           # 중미맥 (Baird's Tapir)
-        "Trichechus manatus",        # 매너티 (West Indian Manatee)
-        "Alouatta palliata",         # 검은울음원숭이 (Mantled Howler Monkey)
-        "Ara militaris",             # 군인금강앵무 (Military Macaw)
-        "Chelonia mydas",            # 푸른바다거북 (Green Sea Turtle)
-        "Crocodylus acutus",         # 아메리카악어 (American Crocodile)
-        "Gopherus flavomarginatus",  # 볼손거북 (Bolson Tortoise)
-        "Ambystoma mexicanum",       # 아홀로틀 (Axolotl)
-        "Antilocapra americana",     # 프롱혼 (Pronghorn Antelope)
-    ],
+    "MX": {
+        "동물": [
+            "Panthera onca",
+            "Tapirus bairdii",
+            "Trichechus manatus",
+            "Alouatta palliata",
+            "Ara militaris",
+            "Chelonia mydas",
+            "Crocodylus acutus",
+            "Gopherus flavomarginatus",
+            "Ambystoma mexicanum",
+            "Antilocapra americana",
+        ],
+        "식물": [
+            "Sequoia sempervirens",
+            "Pinus ponderosa",
+            "Quercus alba",
+            "Acer saccharum",
+            "Betula papyrifera",
+        ],
+        "곤충": [
+            "Dynastes tityus",
+            "Lucanus elaphus",
+            "Nicrophorus americanus",
+            "Danaus plexippus",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "AR": [
-        # 아르헨티나 대표 멸종위기종
-        "Panthera onca",             # 재규어 (Jaguar)
-        "Puma concolor",             # 퓨마 (Cougar)
-        "Chrysocyon brachyurus",     # 갈기늑대 (Maned Wolf)
-        "Myrmecophaga tridactyla",   # 큰개미핥기 (Giant Anteater)
-        "Pteronura brasiliensis",    # 대수달 (Giant Otter)
-        "Ara glaucogularis",         # 파란목금강앵무 (Blue-throated Macaw)
-        "Hippocamelus bisulcus",     # 칠레사슴 (Chilean Huemul)
-        "Chinchilla chinchilla",     # 친칠라 (Chinchilla)
-        "Eubalaena australis",       # 남방참고래 (Southern Right Whale)
-        "Ctenomys sociabilis",       # 사회적투코투코 (Colonial Tuco-tuco)
-    ],
+    "AR": {
+        "동물": [
+            "Panthera onca",
+            "Puma concolor",
+            "Chrysocyon brachyurus",
+            "Myrmecophaga tridactyla",
+            "Pteronura brasiliensis",
+            "Ara glaucogularis",
+            "Hippocamelus bisulcus",
+            "Chinchilla chinchilla",
+            "Eubalaena australis",
+            "Ctenomys sociabilis",
+        ],
+        "식물": [
+            "Bertholletia excelsa",
+            "Hevea brasiliensis",
+            "Theobroma cacao",
+            "Cinchona pubescens",
+            "Victoria amazonica",
+        ],
+        "곤충": [
+            "Dynastes hercules",
+            "Megasoma elephas",
+            "Morpho menelaus",
+            "Titanus giganteus",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "GB": [
-        # 영국 대표 멸종위기종
-        "Lutra lutra",               # 수달 (Eurasian Otter)
-        "Mustela putorius",          # 유럽족제비 (European Polecat)
-        "Sciurus vulgaris",          # 유럽다람쁘 (Red Squirrel)
-        "Halichoerus grypus",        # 회색물범 (Grey Seal)
-        "Erinaceus europaeus",       # 유럽고슴도치 (European Hedgehog)
-        "Falco peregrinus",          # 매 (Peregrine Falcon)
-        "Bubo bubo",                 # 수리부엉이 (Eurasian Eagle-Owl)
-        "Salmo salar",               # 대서양연어 (Atlantic Salmon)
-        "Phocoena phocoena",         # 쇠돌고래 (Harbor Porpoise)
-        "Bufo bufo",                 # 유럽두꺼비 (Common Toad)
-    ],
+    "GB": {
+        "동물": [
+            "Lutra lutra",
+            "Mustela putorius",
+            "Sciurus vulgaris",
+            "Halichoerus grypus",
+            "Erinaceus europaeus",
+            "Falco peregrinus",
+            "Bubo bubo",
+            "Salmo salar",
+            "Phocoena phocoena",
+            "Bufo bufo",
+        ],
+        "식물": [
+            "Taxus baccata",
+            "Pinus sylvestris",
+            "Betula pendula",
+            "Quercus robur",
+            "Fagus sylvatica",
+        ],
+        "곤충": [
+            "Lucanus cervus",
+            "Cerambyx cerdo",
+            "Rosalia alpina",
+            "Carabus auratus",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "FR": [
-        # 프랑스 대표 멸종위기종
-        "Ursus arctos",              # 불곰 (Brown Bear)
-        "Lynx lynx",                 # 유라시아스라소니 (Eurasian Lynx)
-        "Canis lupus",               # 회색늑대 (Gray Wolf)
-        "Lutra lutra",               # 수달 (Eurasian Otter)
-        "Vulpes vulpes",             # 붉은여우 (Red Fox)
-        "Gypaetus barbatus",         # 수염수리 (Bearded Vulture)
-        "Aquila chrysaetos",         # 금독수리 (Golden Eagle)
-        "Testudo hermanni",          # 헤르만육지거북 (Hermann's Tortoise)
-        "Monachus monachus",         # 지중해몽크물범 (Mediterranean Monk Seal)
-        "Phoca vitulina",            # 항구물범 (Harbor Seal)
-    ],
+    "FR": {
+        "동물": [
+            "Ursus arctos",
+            "Lynx lynx",
+            "Canis lupus",
+            "Lutra lutra",
+            "Vulpes vulpes",
+            "Gypaetus barbatus",
+            "Aquila chrysaetos",
+            "Testudo hermanni",
+            "Monachus monachus",
+            "Phoca vitulina",
+        ],
+        "식물": [
+            "Taxus baccata",
+            "Pinus sylvestris",
+            "Betula pendula",
+            "Quercus robur",
+            "Fagus sylvatica",
+        ],
+        "곤충": [
+            "Lucanus cervus",
+            "Cerambyx cerdo",
+            "Rosalia alpina",
+            "Carabus auratus",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "DE": [
-        # 독일 대표 멸종위기종
-        "Lynx lynx",                 # 유라시아스라소니 (Eurasian Lynx)
-        "Canis lupus",               # 회색늑대 (Gray Wolf)
-        "Lutra lutra",               # 수달 (Eurasian Otter)
-        "Castor fiber",              # 유라시아비버 (Eurasian Beaver)
-        "Ursus arctos",              # 불곰 (Brown Bear)
-        "Mustela lutreola",          # 유럽밍크 (European Mink)
-        "Aquila chrysaetos",         # 금독수리 (Golden Eagle)
-        "Haliaeetus albicilla",      # 흰꼬리수리 (White-tailed Eagle)
-        "Grus grus",                 # 두루미 (Common Crane)
-        "Bombina bombina",           # 붉은배두꺼비 (Fire-bellied Toad)
-    ],
+    "DE": {
+        "동물": [
+            "Lynx lynx",
+            "Canis lupus",
+            "Lutra lutra",
+            "Castor fiber",
+            "Ursus arctos",
+            "Mustela lutreola",
+            "Aquila chrysaetos",
+            "Haliaeetus albicilla",
+            "Grus grus",
+            "Bombina bombina",
+        ],
+        "식물": [
+            "Taxus baccata",
+            "Pinus sylvestris",
+            "Betula pendula",
+            "Quercus robur",
+            "Fagus sylvatica",
+        ],
+        "곤충": [
+            "Lucanus cervus",
+            "Cerambyx cerdo",
+            "Rosalia alpina",
+            "Carabus auratus",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "IT": [
-        # 이탈리아 대표 멸종위기종
-        "Ursus arctos marsicanus",   # 아펜니노곰 (Marsican Brown Bear)
-        "Canis lupus",               # 회색늑대 (Gray Wolf)
-        "Lynx lynx",                 # 유라시아스라소니 (Eurasian Lynx)
-        "Rupicapra pyrenaica ornata", # 아브루초샤모아 (Abruzzo Chamois)
-        "Caretta caretta",           # 붉은바다거북 (Loggerhead Sea Turtle)
-        "Monachus monachus",         # 지중해몽크물범 (Mediterranean Monk Seal)
-        "Testudo hermanni",          # 헤르만육지거북 (Hermann's Tortoise)
-        "Aquila chrysaetos",         # 금독수리 (Golden Eagle)
-        "Gypaetus barbatus",         # 수염수리 (Bearded Vulture)
-        "Salamandrina perspicillata", # 북부안경도롱뇽 (Northern Spectacled Salamander)
-    ],
+    "IT": {
+        "동물": [
+            "Ursus arctos marsicanus",
+            "Canis lupus",
+            "Lynx lynx",
+            "Rupicapra pyrenaica ornata",
+            "Caretta caretta",
+            "Monachus monachus",
+            "Testudo hermanni",
+            "Aquila chrysaetos",
+            "Gypaetus barbatus",
+            "Salamandrina perspicillata",
+        ],
+        "식물": [
+            "Taxus baccata",
+            "Pinus sylvestris",
+            "Betula pendula",
+            "Quercus robur",
+            "Fagus sylvatica",
+        ],
+        "곤충": [
+            "Lucanus cervus",
+            "Cerambyx cerdo",
+            "Rosalia alpina",
+            "Carabus auratus",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "ID": [
-        # 인도네시아 대표 멸종위기종
-        "Pongo abelii",              # 수마트라오랑우탄 (Sumatran Orangutan)
-        "Pongo pygmaeus",            # 보르네오오랑우탄 (Bornean Orangutan)
-        "Panthera tigris sumatrae",  # 수마트라호랑이 (Sumatran Tiger)
-        "Rhinoceros sondaicus",      # 자바코뿔소 (Javan Rhinoceros)
-        "Dicerorhinus sumatrensis",  # 수마트라코뿔소 (Sumatran Rhinoceros)
-        "Elephas maximus sumatranus", # 수마트라코끼리 (Sumatran Elephant)
-        "Varanus komodoensis",       # 코모도왕도마뱀 (Komodo Dragon)
-        "Manis javanica",            # 말레이천산갑 (Sunda Pangolin)
-        "Crocodylus porosus",        # 바다악어 (Saltwater Crocodile)
-        "Chelonia mydas",            # 푸른바다거북 (Green Sea Turtle)
-    ],
+    "ID": {
+        "동물": [
+            "Pongo abelii",
+            "Pongo pygmaeus",
+            "Panthera tigris sumatrae",
+            "Rhinoceros sondaicus",
+            "Dicerorhinus sumatrensis",
+            "Elephas maximus sumatranus",
+            "Varanus komodoensis",
+            "Manis javanica",
+            "Crocodylus porosus",
+            "Chelonia mydas",
+        ],
+        "식물": [
+            "Magnolia sieboldii",
+            "Pinus koraiensis",
+            "Taxus cuspidata",
+            "Rhododendron aureum",
+            "Abies koreana",
+        ],
+        "곤충": [
+            "Teinopalpus imperialis",
+            "Lucanus maculifemoratus",
+            "Callipogon relictus",
+            "Rosalia batesi",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "KE": [
-        # 케냐 대표 멸종위기종
-        "Loxodonta africana",        # 아프리카코끼리 (African Elephant)
-        "Panthera leo",              # 사자 (Lion)
-        "Panthera pardus",           # 표범 (Leopard)
-        "Diceros bicornis",          # 검은코뿔소 (Black Rhinoceros)
-        "Acinonyx jubatus",          # 치타 (Cheetah)
-        "Giraffa camelopardalis",    # 기린 (Giraffe)
-        "Hippopotamus amphibius",    # 하마 (Hippopotamus)
-        "Equus grevyi",              # 그레비얼룩말 (Grevy's Zebra)
-        "Lycaon pictus",             # 아프리카들개 (African Wild Dog)
-        "Struthio camelus",          # 타조 (Ostrich)
-    ],
+    "KE": {
+        "동물": [
+            "Loxodonta africana",
+            "Panthera leo",
+            "Panthera pardus",
+            "Diceros bicornis",
+            "Acinonyx jubatus",
+            "Giraffa camelopardalis",
+            "Hippopotamus amphibius",
+            "Equus grevyi",
+            "Lycaon pictus",
+            "Struthio camelus",
+        ],
+        "식물": [
+            "Acacia tortilis",
+            "Adansonia digitata",
+            "Aloe vera",
+            "Euphorbia tirucalli",
+            "Commiphora myrrha",
+        ],
+        "곤충": [
+            "Goliathus goliatus",
+            "Mecynorrhina torquata",
+            "Charaxes jasius",
+            "Mylabris oculata",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "EG": [
-        # 이집트 대표 멸종위기종
-        "Panthera pardus",           # 표범 (Leopard)
-        "Acinonyx jubatus",          # 치타 (Cheetah)
-        "Gazella dorcas",            # 도르카스가젤 (Dorcas Gazelle)
-        "Oryx dammah",               # 시미타뿔오릭스 (Scimitar-horned Oryx)
-        "Addax nasomaculatus",       # 아닥스 (Addax)
-        "Crocodylus niloticus",      # 나일악어 (Nile Crocodile)
-        "Caretta caretta",           # 붉은바다거북 (Loggerhead Sea Turtle)
-        "Chelonia mydas",            # 푸른바다거북 (Green Sea Turtle)
-        "Dugong dugon",              # 듀공 (Dugong)
-        "Tursiops truncatus",        # 큰돌고래 (Bottlenose Dolphin)
-    ],
+    "EG": {
+        "동물": [
+            "Panthera pardus",
+            "Acinonyx jubatus",
+            "Gazella dorcas",
+            "Oryx dammah",
+            "Addax nasomaculatus",
+            "Crocodylus niloticus",
+            "Caretta caretta",
+            "Chelonia mydas",
+            "Dugong dugon",
+            "Tursiops truncatus",
+        ],
+        "식물": [
+            "Acacia tortilis",
+            "Adansonia digitata",
+            "Aloe vera",
+            "Euphorbia tirucalli",
+            "Commiphora myrrha",
+        ],
+        "곤충": [
+            "Goliathus goliatus",
+            "Mecynorrhina torquata",
+            "Charaxes jasius",
+            "Mylabris oculata",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "TH": [
-        # 태국 대표 멸종위기종
-        "Panthera tigris corbetti",  # 인도차이나호랑이 (Indochinese Tiger)
-        "Elephas maximus",           # 아시아코끼리 (Asian Elephant)
-        "Panthera pardus",           # 표범 (Leopard)
-        "Bos gaurus",                # 가울 (Gaur)
-        "Cuon alpinus",              # 붉은개 (Dhole)
-        "Prionailurus bengalensis",  # 삵 (Leopard Cat)
-        "Crocodylus siamensis",      # 샴악어 (Siamese Crocodile)
-        "Chelonia mydas",            # 푸른바다거북 (Green Sea Turtle)
-        "Dermochelys coriacea",      # 장수거북 (Leatherback Turtle)
-        "Gavialis gangeticus",       # 인도악어 (Gharial)
-    ],
+    "TH": {
+        "동물": [
+            "Panthera tigris corbetti",
+            "Elephas maximus",
+            "Panthera pardus",
+            "Bos gaurus",
+            "Cuon alpinus",
+            "Prionailurus bengalensis",
+            "Crocodylus siamensis",
+            "Chelonia mydas",
+            "Dermochelys coriacea",
+            "Gavialis gangeticus",
+        ],
+        "식물": [
+            "Magnolia sieboldii",
+            "Pinus koraiensis",
+            "Taxus cuspidata",
+            "Rhododendron aureum",
+            "Abies koreana",
+        ],
+        "곤충": [
+            "Teinopalpus imperialis",
+            "Lucanus maculifemoratus",
+            "Callipogon relictus",
+            "Rosalia batesi",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "MY": [
-        # 말레이시아 대표 멸종위기종
-        "Panthera tigris jacksoni",  # 말레이호랑이 (Malayan Tiger)
-        "Elephas maximus",           # 아시아코끼리 (Asian Elephant)
-        "Rhinoceros sondaicus",      # 자바코뿔소 (Javan Rhinoceros)
-        "Dicerorhinus sumatrensis",  # 수마트라코뿔소 (Sumatran Rhinoceros)
-        "Panthera pardus",           # 표범 (Leopard)
-        "Helarctos malayanus",       # 말레이곰 (Sun Bear)
-        "Manis javanica",            # 말레이천산갑 (Sunda Pangolin)
-        "Pongo pygmaeus",            # 보르네오오랑우탄 (Bornean Orangutan)
-        "Nasalis larvatus",          # 긴코원숭이 (Proboscis Monkey)
-        "Crocodylus porosus",        # 바다악어 (Saltwater Crocodile)
-    ],
+    "MY": {
+        "동물": [
+            "Panthera tigris jacksoni",
+            "Elephas maximus",
+            "Rhinoceros sondaicus",
+            "Dicerorhinus sumatrensis",
+            "Panthera pardus",
+            "Helarctos malayanus",
+            "Manis javanica",
+            "Pongo pygmaeus",
+            "Nasalis larvatus",
+            "Crocodylus porosus",
+        ],
+        "식물": [
+            "Magnolia sieboldii",
+            "Pinus koraiensis",
+            "Taxus cuspidata",
+            "Rhododendron aureum",
+            "Abies koreana",
+        ],
+        "곤충": [
+            "Teinopalpus imperialis",
+            "Lucanus maculifemoratus",
+            "Callipogon relictus",
+            "Rosalia batesi",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "NZ": [
-        # 뉴질랜드 대표 멸종위기종
-        "Apteryx haastii",           # 큰키위 (Great Spotted Kiwi)
-        "Strigops habroptilus",      # 카카포앵무 (Kakapo)
-        "Nestor meridionalis",       # 카카앵무 (Kaka)
-        "Megadyptes antipodes",      # 노란눈펭귄 (Yellow-eyed Penguin)
-        "Carcharodon carcharias",    # 백상아리 (Great White Shark)
-        "Arctocephalus forsteri",    # 뉴질랜드물개 (New Zealand Fur Seal)
-        "Sphenodon punctatus",       # 투아타라 (Tuatara)
-        "Leiopelma hochstetteri",    # 호흐스테터개구리 (Hochstetter's Frog)
-        "Delphinapterus leucas",     # 벨루가 (Beluga Whale)
-        "Callorhinus ursinus",       # 북방물개 (Northern Fur Seal)
-    ],
+    "NZ": {
+        "동물": [
+            "Apteryx haastii",
+            "Strigops habroptilus",
+            "Nestor meridionalis",
+            "Megadyptes antipodes",
+            "Carcharodon carcharias",
+            "Arctocephalus forsteri",
+            "Sphenodon punctatus",
+            "Leiopelma hochstetteri",
+            "Delphinapterus leucas",
+            "Callorhinus ursinus",
+        ],
+        "식물": [
+            "Eucalyptus regnans",
+            "Acacia pycnantha",
+            "Araucaria cunninghamii",
+            "Ficus macrophylla",
+            "Banksia serrata",
+        ],
+        "곤충": [
+            "Ornithoptera alexandrae",
+            "Papilio ulysses",
+            "Phalacrognathus muelleri",
+            "Lamprima aurata",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "SE": [
-        # 스웨덴 대표 멸종위기종
-        "Ursus arctos",              # 불곰 (Brown Bear)
-        "Canis lupus",               # 회색늑대 (Gray Wolf)
-        "Lynx lynx",                 # 유라시아스라소니 (Eurasian Lynx)
-        "Gulo gulo",                 # 울버린 (Wolverine)
-        "Rangifer tarandus",         # 순록 (Reindeer)
-        "Alces alces",               # 말코손바닥사슴 (Moose)
-        "Halichoerus grypus",        # 회색물범 (Grey Seal)
-        "Phoca vitulina",            # 항구물범 (Harbor Seal)
-        "Haliaeetus albicilla",      # 흰꼬리수리 (White-tailed Eagle)
-        "Aquila chrysaetos",         # 금독수리 (Golden Eagle)
-    ],
+    "SE": {
+        "동물": [
+            "Ursus arctos",
+            "Canis lupus",
+            "Lynx lynx",
+            "Gulo gulo",
+            "Rangifer tarandus",
+            "Alces alces",
+            "Halichoerus grypus",
+            "Phoca vitulina",
+            "Haliaeetus albicilla",
+            "Aquila chrysaetos",
+        ],
+        "식물": [
+            "Taxus baccata",
+            "Pinus sylvestris",
+            "Betula pendula",
+            "Quercus robur",
+            "Fagus sylvatica",
+        ],
+        "곤충": [
+            "Lucanus cervus",
+            "Cerambyx cerdo",
+            "Rosalia alpina",
+            "Carabus auratus",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "NO": [
-        # 노르웨이 대표 멸종위기종
-        "Ursus maritimus",           # 북극곰 (Polar Bear)
-        "Ursus arctos",              # 불곰 (Brown Bear)
-        "Canis lupus",               # 회색늑대 (Gray Wolf)
-        "Lynx lynx",                 # 유라시아스라소니 (Eurasian Lynx)
-        "Gulo gulo",                 # 울버린 (Wolverine)
-        "Rangifer tarandus",         # 순록 (Reindeer)
-        "Balaenoptera musculus",     # 대왕고래 (Blue Whale)
-        "Megaptera novaeangliae",    # 혹등고래 (Humpback Whale)
-        "Orcinus orca",              # 범고래 (Orca/Killer Whale)
-        "Halichoerus grypus",        # 회색물범 (Grey Seal)
-    ],
+    "NO": {
+        "동물": [
+            "Ursus maritimus",
+            "Ursus arctos",
+            "Canis lupus",
+            "Lynx lynx",
+            "Gulo gulo",
+            "Rangifer tarandus",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Orcinus orca",
+            "Halichoerus grypus",
+        ],
+        "식물": [
+            "Taxus baccata",
+            "Pinus sylvestris",
+            "Betula pendula",
+            "Quercus robur",
+            "Fagus sylvatica",
+        ],
+        "곤충": [
+            "Lucanus cervus",
+            "Cerambyx cerdo",
+            "Rosalia alpina",
+            "Carabus auratus",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "PL": [
-        # 폴란드 대표 멸종위기종
-        "Bison bonasus",             # 유럽들소 (European Bison)
-        "Canis lupus",               # 회색늑대 (Gray Wolf)
-        "Lynx lynx",                 # 유라시아스라소니 (Eurasian Lynx)
-        "Ursus arctos",              # 불곰 (Brown Bear)
-        "Castor fiber",              # 유라시아비버 (Eurasian Beaver)
-        "Lutra lutra",               # 수달 (Eurasian Otter)
-        "Aquila chrysaetos",         # 금독수리 (Golden Eagle)
-        "Haliaeetus albicilla",      # 흰꼬리수리 (White-tailed Eagle)
-        "Grus grus",                 # 두루미 (Common Crane)
-        "Ciconia nigra",             # 검은황새 (Black Stork)
-    ],
+    "PL": {
+        "동물": [
+            "Bison bonasus",
+            "Canis lupus",
+            "Lynx lynx",
+            "Ursus arctos",
+            "Castor fiber",
+            "Lutra lutra",
+            "Aquila chrysaetos",
+            "Haliaeetus albicilla",
+            "Grus grus",
+            "Ciconia nigra",
+        ],
+        "식물": [
+            "Taxus baccata",
+            "Pinus sylvestris",
+            "Betula pendula",
+            "Quercus robur",
+            "Fagus sylvatica",
+        ],
+        "곤충": [
+            "Lucanus cervus",
+            "Cerambyx cerdo",
+            "Rosalia alpina",
+            "Carabus auratus",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "ES": [
-        # 스페인 대표 멸종위기종
-        "Lynx pardinus",             # 이베리아스라소니 (Iberian Lynx)
-        "Ursus arctos",              # 불곰 (Brown Bear)
-        "Canis lupus",               # 회색늑대 (Gray Wolf)
-        "Aquila adalberti",          # 스페인황제독수리 (Spanish Imperial Eagle)
-        "Gypaetus barbatus",         # 수염수리 (Bearded Vulture)
-        "Monachus monachus",         # 지중해몽크물범 (Mediterranean Monk Seal)
-        "Caretta caretta",           # 붉은바다거북 (Loggerhead Sea Turtle)
-        "Testudo graeca",            # 그리스육지거북 (Spur-thighed Tortoise)
-        "Capra pyrenaica",           # 스페인아이벡스 (Iberian Ibex)
-        "Rupicapra pyrenaica",       # 피레네샤모아 (Pyrenean Chamois)
-    ],
+    "ES": {
+        "동물": [
+            "Lynx pardinus",
+            "Ursus arctos",
+            "Canis lupus",
+            "Aquila adalberti",
+            "Gypaetus barbatus",
+            "Monachus monachus",
+            "Caretta caretta",
+            "Testudo graeca",
+            "Capra pyrenaica",
+            "Rupicapra pyrenaica",
+        ],
+        "식물": [
+            "Taxus baccata",
+            "Pinus sylvestris",
+            "Betula pendula",
+            "Quercus robur",
+            "Fagus sylvatica",
+        ],
+        "곤충": [
+            "Lucanus cervus",
+            "Cerambyx cerdo",
+            "Rosalia alpina",
+            "Carabus auratus",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "TR": [
-        # 터키 대표 멸종위기종
-        "Panthera pardus tulliana",  # 아나톨리아표범 (Anatolian Leopard)
-        "Ursus arctos",              # 불곰 (Brown Bear)
-        "Canis lupus",               # 회색늑대 (Gray Wolf)
-        "Lynx lynx",                 # 유라시아스라소니 (Eurasian Lynx)
-        "Capra aegagrus",            # 야생염소 (Wild Goat)
-        "Gazella subgutturosa",      # 고비가젤 (Goitered Gazelle)
-        "Monachus monachus",         # 지중해몽크물범 (Mediterranean Monk Seal)
-        "Caretta caretta",           # 붉은바다거북 (Loggerhead Sea Turtle)
-        "Testudo graeca",            # 그리스육지거북 (Spur-thighed Tortoise)
-        "Aquila chrysaetos",         # 금독수리 (Golden Eagle)
-    ],
+    "TR": {
+        "동물": [
+            "Panthera pardus tulliana",
+            "Ursus arctos",
+            "Canis lupus",
+            "Lynx lynx",
+            "Capra aegagrus",
+            "Gazella subgutturosa",
+            "Monachus monachus",
+            "Caretta caretta",
+            "Testudo graeca",
+            "Aquila chrysaetos",
+        ],
+        "식물": [
+            "Taxus baccata",
+            "Pinus sylvestris",
+            "Betula pendula",
+            "Quercus robur",
+            "Fagus sylvatica",
+        ],
+        "곤충": [
+            "Lucanus cervus",
+            "Cerambyx cerdo",
+            "Rosalia alpina",
+            "Carabus auratus",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "VN": [
-        # 베트남 대표 멸종위기종
-        "Panthera tigris",           # 호랑이 (Tiger)
-        "Elephas maximus",           # 아시아코끼리 (Asian Elephant)
-        "Rhinoceros sondaicus",      # 자바코뿔소 (Javan Rhinoceros)
-        "Bos sauveli",               # 코프레이소 (Kouprey)
-        "Pseudoryx nghetinhensis",   # 사올라 (Saola)
-        "Crocodylus siamensis",      # 샴악어 (Siamese Crocodile)
-        "Chelonia mydas",            # 푸른바다거북 (Green Sea Turtle)
-        "Dermochelys coriacea",      # 장수거북 (Leatherback Turtle)
-        "Manis javanica",            # 말레이천산갑 (Sunda Pangolin)
-        "Nomascus gabriellae",       # 황볼긴팔원숭이 (Yellow-cheeked Gibbon)
-    ],
+    "VN": {
+        "동물": [
+            "Panthera tigris",
+            "Elephas maximus",
+            "Rhinoceros sondaicus",
+            "Bos sauveli",
+            "Pseudoryx nghetinhensis",
+            "Crocodylus siamensis",
+            "Chelonia mydas",
+            "Dermochelys coriacea",
+            "Manis javanica",
+            "Nomascus gabriellae",
+        ],
+        "식물": [
+            "Magnolia sieboldii",
+            "Pinus koraiensis",
+            "Taxus cuspidata",
+            "Rhododendron aureum",
+            "Abies koreana",
+        ],
+        "곤충": [
+            "Teinopalpus imperialis",
+            "Lucanus maculifemoratus",
+            "Callipogon relictus",
+            "Rosalia batesi",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "PE": [
-        # 페루 대표 멸종위기종
-        "Panthera onca",             # 재규어 (Jaguar)
-        "Tremarctos ornatus",        # 안경곰 (Spectacled Bear)
-        "Tapirus terrestris",        # 남아메리카맥 (South American Tapir)
-        "Pteronura brasiliensis",    # 대수달 (Giant Otter)
-        "Ara militaris",             # 군인금강앵무 (Military Macaw)
-        "Trichechus manatus",        # 매너티 (West Indian Manatee)
-        "Inia geoffrensis",          # 아마존강돌고래 (Amazon River Dolphin)
-        "Crocodylus acutus",         # 아메리카악어 (American Crocodile)
-        "Chelonia mydas",            # 푸른바다거북 (Green Sea Turtle)
-        "Hippocamelus antisensis",   # 페루사슴 (Taruca)
-    ],
+    "PE": {
+        "동물": [
+            "Panthera onca",
+            "Tremarctos ornatus",
+            "Tapirus terrestris",
+            "Pteronura brasiliensis",
+            "Ara militaris",
+            "Trichechus manatus",
+            "Inia geoffrensis",
+            "Crocodylus acutus",
+            "Chelonia mydas",
+            "Hippocamelus antisensis",
+        ],
+        "식물": [
+            "Bertholletia excelsa",
+            "Hevea brasiliensis",
+            "Theobroma cacao",
+            "Cinchona pubescens",
+            "Victoria amazonica",
+        ],
+        "곤충": [
+            "Dynastes hercules",
+            "Megasoma elephas",
+            "Morpho menelaus",
+            "Titanus giganteus",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "CL": [
-        # 칠레 대표 멸종위기종
-        "Puma concolor",             # 퓨마 (Cougar)
-        "Hippocamelus bisulcus",     # 칠레사슴 (Chilean Huemul)
-        "Lama guanicoe",             # 과나코 (Guanaco)
-        "Vicugna vicugna",           # 비쿠냐 (Vicuña)
-        "Chinchilla chinchilla",     # 친칠라 (Chinchilla)
-        "Lontra felina",             # 해달수달 (Marine Otter)
-        "Arctocephalus philippii",   # 후안페르난데스물개 (Juan Fernández Fur Seal)
-        "Balaenoptera musculus",     # 대왕고래 (Blue Whale)
-        "Eubalaena australis",       # 남방참고래 (Southern Right Whale)
-        "Spheniscus humboldti",      # 훔볼트펭귄 (Humboldt Penguin)
-    ],
+    "CL": {
+        "동물": [
+            "Puma concolor",
+            "Hippocamelus bisulcus",
+            "Lama guanicoe",
+            "Vicugna vicugna",
+            "Chinchilla chinchilla",
+            "Lontra felina",
+            "Arctocephalus philippii",
+            "Balaenoptera musculus",
+            "Eubalaena australis",
+            "Spheniscus humboldti",
+        ],
+        "식물": [
+            "Bertholletia excelsa",
+            "Hevea brasiliensis",
+            "Theobroma cacao",
+            "Cinchona pubescens",
+            "Victoria amazonica",
+        ],
+        "곤충": [
+            "Dynastes hercules",
+            "Megasoma elephas",
+            "Morpho menelaus",
+            "Titanus giganteus",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "CO": [
-        # 콜롬비아 대표 멸종위기종
-        "Panthera onca",             # 재규어 (Jaguar)
-        "Tremarctos ornatus",        # 안경곰 (Spectacled Bear)
-        "Tapirus terrestris",        # 남아메리카맥 (South American Tapir)
-        "Ateles fusciceps",          # 검은머리거미원숭이 (Brown-headed Spider Monkey)
-        "Saguinus oedipus",          # 솜털머리타마린 (Cotton-top Tamarin)
-        "Ara militaris",             # 군인금강앵무 (Military Macaw)
-        "Crocodylus acutus",         # 아메리카악어 (American Crocodile)
-        "Chelonia mydas",            # 푸른바다거북 (Green Sea Turtle)
-        "Trichechus manatus",        # 매너티 (West Indian Manatee)
-        "Inia geoffrensis",          # 아마존강돌고래 (Amazon River Dolphin)
-    ],
+    "CO": {
+        "동물": [
+            "Panthera onca",
+            "Tremarctos ornatus",
+            "Tapirus terrestris",
+            "Ateles fusciceps",
+            "Saguinus oedipus",
+            "Ara militaris",
+            "Crocodylus acutus",
+            "Chelonia mydas",
+            "Trichechus manatus",
+            "Inia geoffrensis",
+        ],
+        "식물": [
+            "Bertholletia excelsa",
+            "Hevea brasiliensis",
+            "Theobroma cacao",
+            "Cinchona pubescens",
+            "Victoria amazonica",
+        ],
+        "곤충": [
+            "Dynastes hercules",
+            "Megasoma elephas",
+            "Morpho menelaus",
+            "Titanus giganteus",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "NG": [
-        # 나이지리아 대표 멸종위기종
-        "Gorilla gorilla",           # 서부고릴라 (Western Gorilla)
-        "Pan troglodytes",           # 침팬지 (Chimpanzee)
-        "Loxodonta africana",        # 아프리카코끼리 (African Elephant)
-        "Panthera leo",              # 사자 (Lion)
-        "Panthera pardus",           # 표범 (Leopard)
-        "Hippopotamus amphibius",    # 하마 (Hippopotamus)
-        "Trichechus senegalensis",   # 서아프리카매너티 (West African Manatee)
-        "Crocodylus niloticus",      # 나일악어 (Nile Crocodile)
-        "Chelonia mydas",            # 푸른바다거북 (Green Sea Turtle)
-        "Manis tricuspis",           # 아프리카나무천산갑 (Tree Pangolin)
-    ],
+    "NG": {
+        "동물": [
+            "Gorilla gorilla",
+            "Pan troglodytes",
+            "Loxodonta africana",
+            "Panthera leo",
+            "Panthera pardus",
+            "Hippopotamus amphibius",
+            "Trichechus senegalensis",
+            "Crocodylus niloticus",
+            "Chelonia mydas",
+            "Manis tricuspis",
+        ],
+        "식물": [
+            "Acacia tortilis",
+            "Adansonia digitata",
+            "Aloe vera",
+            "Euphorbia tirucalli",
+            "Commiphora myrrha",
+        ],
+        "곤충": [
+            "Goliathus goliatus",
+            "Mecynorrhina torquata",
+            "Charaxes jasius",
+            "Mylabris oculata",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 }
 
 # 국가 코드와 이름 매핑 (참고용)
@@ -499,96 +1270,271 @@ COUNTRY_NAMES = {
 # ========================================
 
 CONTINENT_SPECIES_MAP = {
-    "AS": [  # Asia
-        "Panthera tigris",           # 호랑이 (Tiger)
-        "Ailuropoda melanoleuca",    # 자이언트판다 (Giant Panda)
-        "Panthera uncia",            # 눈표범 (Snow Leopard)
-        "Elephas maximus",           # 아시아코끼리 (Asian Elephant)
-        "Pongo abelii",              # 수마트라오랑우탄 (Sumatran Orangutan)
-        "Rhinoceros sondaicus",      # 자바코뿔소 (Javan Rhinoceros)
-        "Grus japonensis",           # 두루미 (Red-crowned Crane)
-        "Ursus thibetanus",          # 반달가슴곰 (Asiatic Black Bear)
-        "Naemorhedus caudatus",      # 산양 (Long-tailed Goral)
-        "Crocodylus siamensis",      # 샴악어 (Siamese Crocodile)
-    ],
+    "AS": {
+        "동물": [
+            "Panthera tigris",
+            "Ailuropoda melanoleuca",
+            "Panthera uncia",
+            "Elephas maximus",
+            "Pongo abelii",
+            "Rhinoceros sondaicus",
+            "Grus japonensis",
+            "Ursus thibetanus",
+            "Naemorhedus caudatus",
+            "Crocodylus siamensis",
+        ],
+        "식물": [
+            "Magnolia sieboldii",
+            "Pinus koraiensis",
+            "Taxus cuspidata",
+            "Rhododendron aureum",
+            "Abies koreana",
+        ],
+        "곤충": [
+            "Teinopalpus imperialis",
+            "Lucanus maculifemoratus",
+            "Callipogon relictus",
+            "Rosalia batesi",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "EU": [  # Europe
-        "Ursus arctos",              # 불곰 (Brown Bear)
-        "Lynx lynx",                 # 유라시아스라소니 (Eurasian Lynx)
-        "Canis lupus",               # 회색늑대 (Gray Wolf)
-        "Lynx pardinus",             # 이베리아스라소니 (Iberian Lynx)
-        "Bison bonasus",             # 유럽들소 (European Bison)
-        "Lutra lutra",               # 수달 (Eurasian Otter)
-        "Aquila chrysaetos",         # 금독수리 (Golden Eagle)
-        "Gypaetus barbatus",         # 수염수리 (Bearded Vulture)
-        "Monachus monachus",         # 지중해몽크물범 (Mediterranean Monk Seal)
-        "Castor fiber",              # 유라시아비버 (Eurasian Beaver)
-    ],
+    "EU": {
+        "동물": [
+            "Ursus arctos",
+            "Lynx lynx",
+            "Canis lupus",
+            "Lynx pardinus",
+            "Bison bonasus",
+            "Lutra lutra",
+            "Aquila chrysaetos",
+            "Gypaetus barbatus",
+            "Monachus monachus",
+            "Castor fiber",
+        ],
+        "식물": [
+            "Taxus baccata",
+            "Pinus sylvestris",
+            "Betula pendula",
+            "Quercus robur",
+            "Fagus sylvatica",
+        ],
+        "곤충": [
+            "Lucanus cervus",
+            "Cerambyx cerdo",
+            "Rosalia alpina",
+            "Carabus auratus",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "AF": [  # Africa
-        "Loxodonta africana",        # 아프리카코끼리 (African Elephant)
-        "Panthera leo",              # 사자 (Lion)
-        "Diceros bicornis",          # 검은코뿔소 (Black Rhinoceros)
-        "Panthera pardus",           # 표범 (Leopard)
-        "Acinonyx jubatus",          # 치타 (Cheetah)
-        "Giraffa camelopardalis",    # 기린 (Giraffe)
-        "Gorilla gorilla",           # 서부고릴라 (Western Gorilla)
-        "Hippopotamus amphibius",    # 하마 (Hippopotamus)
-        "Lycaon pictus",             # 아프리카들개 (African Wild Dog)
-        "Crocodylus niloticus",      # 나일악어 (Nile Crocodile)
-    ],
+    "AF": {
+        "동물": [
+            "Loxodonta africana",
+            "Panthera leo",
+            "Diceros bicornis",
+            "Panthera pardus",
+            "Acinonyx jubatus",
+            "Giraffa camelopardalis",
+            "Gorilla gorilla",
+            "Hippopotamus amphibius",
+            "Lycaon pictus",
+            "Crocodylus niloticus",
+        ],
+        "식물": [
+            "Acacia tortilis",
+            "Adansonia digitata",
+            "Aloe vera",
+            "Euphorbia tirucalli",
+            "Commiphora myrrha",
+        ],
+        "곤충": [
+            "Goliathus goliatus",
+            "Mecynorrhina torquata",
+            "Charaxes jasius",
+            "Mylabris oculata",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "NA": [  # North America
-        "Haliaeetus leucocephalus",  # 흰머리수리 (Bald Eagle)
-        "Ursus arctos horribilis",   # 그리즐리 곰 (Grizzly Bear)
-        "Ursus maritimus",           # 북극곰 (Polar Bear)
-        "Canis lupus",               # 회색늑대 (Gray Wolf)
-        "Puma concolor",             # 퓨마 (Cougar)
-        "Lynx canadensis",           # 캐나다스라소니 (Canada Lynx)
-        "Grus americana",            # 아메리카두루미 (Whooping Crane)
-        "Mustela nigripes",          # 검은발족제비 (Black-footed Ferret)
-        "Alligator mississippiensis", # 미시시피악어 (American Alligator)
-        "Gymnogyps californianus",   # 캘리포니아콘도르 (California Condor)
-    ],
+    "NA": {
+        "동물": [
+            "Haliaeetus leucocephalus",
+            "Ursus arctos horribilis",
+            "Ursus maritimus",
+            "Canis lupus",
+            "Puma concolor",
+            "Lynx canadensis",
+            "Grus americana",
+            "Mustela nigripes",
+            "Alligator mississippiensis",
+            "Gymnogyps californianus",
+        ],
+        "식물": [
+            "Sequoia sempervirens",
+            "Pinus ponderosa",
+            "Quercus alba",
+            "Acer saccharum",
+            "Betula papyrifera",
+        ],
+        "곤충": [
+            "Dynastes tityus",
+            "Lucanus elaphus",
+            "Nicrophorus americanus",
+            "Danaus plexippus",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "SA": [  # South America
-        "Panthera onca",             # 재규어 (Jaguar)
-        "Tapirus terrestris",        # 남아메리카맥 (South American Tapir)
-        "Pteronura brasiliensis",    # 대수달 (Giant Otter)
-        "Myrmecophaga tridactyla",   # 큰개미핥기 (Giant Anteater)
-        "Tremarctos ornatus",        # 안경곰 (Spectacled Bear)
-        "Ara ararauna",              # 파란금강앵무 (Blue-and-yellow Macaw)
-        "Leontopithecus rosalia",    # 골든라이언타마린 (Golden Lion Tamarin)
-        "Bradypus variegatus",       # 나무늘보 (Brown-throated Sloth)
-        "Inia geoffrensis",          # 아마존강돌고래 (Amazon River Dolphin)
-        "Trichechus manatus",        # 매너티 (West Indian Manatee)
-    ],
+    "SA": {
+        "동물": [
+            "Panthera onca",
+            "Tapirus terrestris",
+            "Pteronura brasiliensis",
+            "Myrmecophaga tridactyla",
+            "Tremarctos ornatus",
+            "Ara ararauna",
+            "Leontopithecus rosalia",
+            "Bradypus variegatus",
+            "Inia geoffrensis",
+            "Trichechus manatus",
+        ],
+        "식물": [
+            "Bertholletia excelsa",
+            "Hevea brasiliensis",
+            "Theobroma cacao",
+            "Cinchona pubescens",
+            "Victoria amazonica",
+        ],
+        "곤충": [
+            "Dynastes hercules",
+            "Megasoma elephas",
+            "Morpho menelaus",
+            "Titanus giganteus",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "OC": [  # Oceania
-        "Phascolarctos cinereus",    # 코알라 (Koala)
-        "Macropus rufus",            # 붉은캥거루 (Red Kangaroo)
-        "Ornithorhynchus anatinus",  # 오리너구리 (Platypus)
-        "Apteryx haastii",           # 큰키위 (Great Spotted Kiwi)
-        "Strigops habroptilus",      # 카카포앵무 (Kakapo)
-        "Crocodylus porosus",        # 바다악어 (Saltwater Crocodile)
-        "Dugong dugon",              # 듀공 (Dugong)
-        "Carcharodon carcharias",    # 백상아리 (Great White Shark)
-        "Megadyptes antipodes",      # 노란눈펭귄 (Yellow-eyed Penguin)
-        "Chelonia mydas",            # 푸른바다거북 (Green Sea Turtle)
-    ],
+    "OC": {
+        "동물": [
+            "Phascolarctos cinereus",
+            "Macropus rufus",
+            "Ornithorhynchus anatinus",
+            "Apteryx haastii",
+            "Strigops habroptilus",
+            "Crocodylus porosus",
+            "Dugong dugon",
+            "Carcharodon carcharias",
+            "Megadyptes antipodes",
+            "Chelonia mydas",
+        ],
+        "식물": [
+            "Eucalyptus regnans",
+            "Acacia pycnantha",
+            "Araucaria cunninghamii",
+            "Ficus macrophylla",
+            "Banksia serrata",
+        ],
+        "곤충": [
+            "Ornithoptera alexandrae",
+            "Papilio ulysses",
+            "Phalacrognathus muelleri",
+            "Lamprima aurata",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 
-    "AN": [  # Antarctica
-        "Aptenodytes forsteri",      # 황제펭귄 (Emperor Penguin)
-        "Aptenodytes patagonicus",   # 킹펭귄 (King Penguin)
-        "Pygoscelis adeliae",        # 아델리펭귄 (Adelie Penguin)
-        "Balaenoptera musculus",     # 대왕고래 (Blue Whale)
-        "Megaptera novaeangliae",    # 혹등고래 (Humpback Whale)
-        "Orcinus orca",              # 범고래 (Orca)
-        "Hydrurga leptonyx",         # 표범물범 (Leopard Seal)
-        "Mirounga leonina",          # 남방코끼리물범 (Southern Elephant Seal)
-        "Lobodon carcinophaga",      # 크레이터이터물범 (Crabeater Seal)
-        "Diomedea exulans",          # 방랑알바트로스 (Wandering Albatross)
-    ],
+    "AN": {
+        "동물": [
+            "Aptenodytes forsteri",
+            "Aptenodytes patagonicus",
+            "Pygoscelis adeliae",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Orcinus orca",
+            "Hydrurga leptonyx",
+            "Mirounga leonina",
+            "Lobodon carcinophaga",
+            "Diomedea exulans",
+        ],
+        "식물": [
+            "Magnolia sieboldii",
+            "Pinus koraiensis",
+            "Taxus cuspidata",
+            "Rhododendron aureum",
+            "Abies koreana",
+        ],
+        "곤충": [
+            "Teinopalpus imperialis",
+            "Lucanus maculifemoratus",
+            "Callipogon relictus",
+            "Rosalia batesi",
+        ],
+        "해양생물": [
+            "Chelonia mydas",
+            "Caretta caretta",
+            "Dermochelys coriacea",
+            "Eretmochelys imbricata",
+            "Balaenoptera musculus",
+            "Megaptera novaeangliae",
+            "Carcharodon carcharias",
+            "Dugong dugon",
+        ],
+    },
 }
 
 # ========================================

@@ -277,7 +277,7 @@ const LandingPage = () => {
             <div className="testimonial-item">
             <img src={jaejun} alt="재준 윤" className="avatar" />
             <div>
-            <span className="name">Yoonjaejun</span>
+            <span className="name">Yunjaejun</span>
             <p className="quote">"생물 수업 시간에 이렇게 시각화 된 웹을 보면서 더 이해가 잘 됐어요"</p>
             </div>
             </div>

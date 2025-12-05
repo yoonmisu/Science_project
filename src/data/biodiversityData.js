@@ -156,27 +156,78 @@ export const endangeredSpeciesCount = {
   }
 };
 
-// 색상 강도 계산 함수 (카테고리별 최대값 기준 균등 분할)
+// 동적 종 개수 저장소 (실시간 API 데이터 기반)
+let dynamicSpeciesCount = {};
+
+/**
+ * 국가별 종 개수를 업데이트 (API 데이터 기반)
+ * @param {Object} countData - { 'KR': 10, 'US': 15, ... }
+ * @param {string} category - 카테고리
+ */
+export const updateSpeciesCount = (countData, category) => {
+  if (!dynamicSpeciesCount[category]) {
+    dynamicSpeciesCount[category] = {};
+  }
+  dynamicSpeciesCount[category] = { ...dynamicSpeciesCount[category], ...countData };
+  console.log(`📊 [updateSpeciesCount] ${category} 업데이트:`, dynamicSpeciesCount[category]);
+};
+
+/**
+ * 모든 국가의 종 개수 초기화
+ * @param {string} category - 카테고리
+ */
+export const resetSpeciesCount = (category) => {
+  dynamicSpeciesCount[category] = {};
+  console.log(`🔄 [resetSpeciesCount] ${category} 초기화`);
+};
+
+/**
+ * 현재 종 개수 데이터 조회
+ * @param {string} category - 카테고리
+ * @returns {Object} - { 'KR': 10, 'US': 15, ... }
+ */
+export const getSpeciesCount = (category) => {
+  return dynamicSpeciesCount[category] || {};
+};
+
+// 색상 강도 계산 함수 (데이터가 있는 국가들끼리만 비교)
 export const getColorIntensity = (category, countryCode) => {
-  const categoryData = endangeredSpeciesCount[category];
-  if (!categoryData) return categoryThemes['동물'].colors[0];
-
-  const count = categoryData[countryCode] || 0;
   const colors = categoryThemes[category]?.colors || categoryThemes['동물'].colors;
+  const minColor = '#f0f0f0';  // 데이터 없는 경우: 연한 회색
 
-  // 데이터가 없는 경우
-  if (count === 0) return colors[0];
+  // 동적 데이터만 사용 (실시간 API) - 정적 데이터 fallback 제거
+  const dynamicData = dynamicSpeciesCount[category];
+  if (dynamicData && Object.keys(dynamicData).length > 0) {
+    const count = dynamicData[countryCode] || 0;
 
-  // 해당 카테고리의 최대값 계산
-  const maxCount = Math.max(...Object.values(categoryData));
+    // 데이터가 없는 경우: 최소 디자인 (연한 회색)
+    if (count === 0) return minColor;
 
-  // 최대값을 5등분하여 구간 설정
-  const step = maxCount / 5;
+    // 데이터가 있는 국가들만 필터링
+    const validCounts = Object.values(dynamicData).filter(c => c > 0);
 
-  // 5개 그룹으로 균등 분할
-  if (count <= step) return colors[0];        // 0-20%
-  if (count <= step * 2) return colors[1];    // 20-40%
-  if (count <= step * 3) return colors[2];    // 40-60%
-  if (count <= step * 4) return colors[3];    // 60-80%
-  return colors[4];                            // 80-100%
+    if (validCounts.length === 0) return minColor;
+
+    // 데이터가 있는 국가들 중에서 최소/최대값 계산
+    const minCount = Math.min(...validCounts);
+    const maxCount = Math.max(...validCounts);
+
+    // 단일 값인 경우 중간 색상
+    if (minCount === maxCount) return colors[2];
+
+    // 데이터가 있는 국가들끼리만 비교하여 5등분
+    const range = maxCount - minCount;
+    const step = range / 5;
+    const normalizedCount = count - minCount;
+
+    // 5개 그룹으로 균등 분할
+    if (normalizedCount <= step) return colors[0];        // 0-20%
+    if (normalizedCount <= step * 2) return colors[1];    // 20-40%
+    if (normalizedCount <= step * 3) return colors[2];    // 40-60%
+    if (normalizedCount <= step * 4) return colors[3];    // 60-80%
+    return colors[4];                                      // 80-100%
+  }
+
+  // 동적 데이터가 없으면 기본 회색 반환 (정적 데이터 fallback 제거)
+  return minColor;
 };

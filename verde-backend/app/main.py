@@ -13,8 +13,8 @@ async def startup_event():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
+    allow_origins=["*"],  # 개발 환경 - 모든 origin 허용
+    allow_credentials=False,  # credentials 비활성화로 wildcard 허용
     allow_methods=["*"],
     allow_headers=["*"],
 )

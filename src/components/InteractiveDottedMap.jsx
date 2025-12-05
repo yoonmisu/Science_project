@@ -444,8 +444,8 @@ const InteractiveDottedMap = ({
 
           // 필터링 체크: filteredCountries가 있으면 해당 국가만 표시
           const isFiltered = filteredCountries !== null &&
-                            filteredCountries.length > 0 &&
-                            !filteredCountries.includes(countryCodeUpper);
+            filteredCountries.length > 0 &&
+            !filteredCountries.includes(countryCodeUpper);
 
           // 필터링된 국가는 회색으로 표시
           let baseDotColor;
