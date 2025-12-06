@@ -1231,24 +1231,84 @@ class IUCNService:
         """
         특정 종의 상세 정보를 IUCN v4 API와 Wikipedia에서 조회합니다.
 
-        ⚡ v4 API Redesign:
+        ⚡ v4 API Redesign (최적화됨):
+        - scientific_name_hint가 있으면 IUCN API 호출 없이 바로 Wikipedia 조회 (빠른 경로)
         - v4에는 ID 기반 직접 조회가 제한적이므로 캐시 또는 학명 기반 재조회 사용
-        - Wikipedia 통합 (2초 타임아웃)
+        - Wikipedia 통합 (1.5초 타임아웃으로 단축)
         - 프론트엔드 호환 완벽 보장
         - 다국어 지원: 요청된 언어의 Wikipedia에서 정보 조회
-        - scientific_name_hint: 학명을 미리 알고 있을 경우 직접 전달 (캐시 미스 시 사용)
 
         Args:
             species_id: IUCN sis_id (v4 기준)
             lang: 언어 코드 (ko=한국어, en=영어, ja=일본어, zh=중국어 등)
-            scientific_name_hint: 학명 힌트 (선택, 캐시 미스 시 이 값을 사용)
+            scientific_name_hint: 학명 힌트 (있으면 캐시/API 건너뛰고 바로 Wikipedia 조회)
 
         Returns:
-            종 상세 정보 딕셔너리 (모든 필드 보장) 또는 None
+            종 상세 정보 딕셔너리 (모든 필드 보장) 또는 에러 정보 포함 딕셔너리
         """
         try:
             # ========================================
-            # Step 0: ID 캐시에서 먼저 확인 (가장 빠른 경로)
+            # Step 0-A: scientific_name_hint가 있으면 바로 Wikipedia 조회 (가장 빠른 경로)
+            # 프론트엔드에서 이미 학명을 알고 있으므로 불필요한 API 호출 생략
+            # ========================================
+            if scientific_name_hint:
+                scientific_name = scientific_name_hint
+
+                # Wikipedia 데이터 조회 (1.5초 타임아웃으로 단축)
+                wiki_info = {}
+                try:
+                    wiki_info = await asyncio.wait_for(
+                        wikipedia_service.get_species_info(scientific_name, lang="en"),
+                        timeout=1.5
+                    )
+                except (asyncio.TimeoutError, Exception):
+                    pass
+
+                # 캐시에서 추가 정보 가져오기 (있으면)
+                cached_data = {}
+                if species_id in self.id_to_species_cache:
+                    cache_entry = self.id_to_species_cache[species_id]
+                    cached_data = cache_entry.get('data', {})
+
+                image_url = wiki_info.get("image_url") or cached_data.get("image_url", "")
+                common_name = wiki_info.get("common_name") or cached_data.get("common_name", scientific_name)
+                description = wiki_info.get("description") or cached_data.get("description", "No description available")
+
+                detail_response = {
+                    "id": species_id,
+                    "name": common_name,
+                    "scientific_name": scientific_name,
+                    "common_name": common_name,
+                    "category": cached_data.get("category", "동물"),
+                    "kingdom": "Animalia",
+                    "phylum": "Chordata",
+                    "class": "Unknown",
+                    "image": image_url,
+                    "image_url": image_url,
+                    "description": description,
+                    "status": cached_data.get("risk_level", "DD"),
+                    "risk_level": cached_data.get("risk_level", "DD"),
+                    "population": "Unknown",
+                    "habitat": "Various habitats",
+                    "threats": [],
+                    "country": cached_data.get("country", "Global"),
+                    "color": "green",
+                    "lang": "en",
+                }
+
+                # AI 번역 적용 (영어가 아닌 경우)
+                if lang != "en":
+                    try:
+                        detail_response = await translation_service.translate_species_info(
+                            detail_response, target_lang=lang
+                        )
+                    except Exception:
+                        pass
+
+                return detail_response
+
+            # ========================================
+            # Step 0-B: ID 캐시에서 확인 (scientific_name_hint 없을 때)
             # ========================================
             if species_id in self.id_to_species_cache:
                 cache_entry = self.id_to_species_cache[species_id]
@@ -1256,14 +1316,15 @@ class IUCNService:
                 if cache_time and datetime.now() - cache_time < self.cache_ttl:
                     cached_species_data = cache_entry.get('data', {})
                     scientific_name = cached_species_data.get('scientific_name')
-                    # Wikipedia 데이터 조회 (항상 영어로 가져옴 - 가장 완전한 정보)
+                    # Wikipedia 데이터 조회 (1.5초 타임아웃)
                     wiki_info = {}
                     try:
                         wiki_info = await asyncio.wait_for(
                             wikipedia_service.get_species_info(scientific_name, lang="en"),
-                            timeout=2.0
+                            timeout=1.5
                         )
-                    except (asyncio.TimeoutError, Exception) as e:
+                    except (asyncio.TimeoutError, Exception):
+                        pass
                     # 캐시된 데이터를 기반으로 상세 정보 구성
                     image_url = wiki_info.get("image_url") or cached_species_data.get("image_url", "")
                     common_name = wiki_info.get("common_name") or cached_species_data.get("common_name", scientific_name)
@@ -1297,7 +1358,8 @@ class IUCNService:
                             detail_response = await translation_service.translate_species_info(
                                 detail_response, target_lang=lang
                             )
-                        except Exception as e:
+                        except Exception:
+                            pass
                     return detail_response
 
             # ========================================
@@ -1320,15 +1382,15 @@ class IUCNService:
             # (v4 API 재호출 없이 빠르게 응답)
             # ========================================
             if cached_species_data:
-                # Wikipedia 데이터 조회 (항상 영어로 가져옴 - 가장 완전한 정보)
+                # Wikipedia 데이터 조회 (1.5초 타임아웃)
                 wiki_info = {}
                 try:
                     wiki_info = await asyncio.wait_for(
                         wikipedia_service.get_species_info(scientific_name, lang="en"),
-                        timeout=2.0
+                        timeout=1.5
                     )
-                except asyncio.TimeoutError:
-                except Exception as e:
+                except (asyncio.TimeoutError, Exception):
+                    pass
                 # 캐시된 데이터를 기반으로 상세 정보 구성
                 image_url = wiki_info.get("image_url") or cached_species_data.get("image_url", "")
                 common_name = wiki_info.get("common_name") or cached_species_data.get("common_name", scientific_name)
@@ -1362,32 +1424,28 @@ class IUCNService:
                         detail_response = await translation_service.translate_species_info(
                             detail_response, target_lang=lang
                         )
-                    except Exception as e:
+                    except Exception:
+                        pass
                 return detail_response
 
             # ========================================
             # Step 3: 캐시 미스 시 v4 API로 학명 조회
-            # (주의: v4는 ID 기반 조회가 제한적, 실패 시 fallback)
+            # (주의: v4는 ID 기반 조회가 제한적, 타임아웃 2초로 단축)
             # ========================================
             # v4 API: /taxa/id/{sis_id} 엔드포인트 시도
             try:
                 url = f"{self.base_url}/taxa/id/{species_id}"
                 response = await asyncio.wait_for(
                     self._make_request(url),
-                    timeout=3.0
+                    timeout=2.0  # 3초 -> 2초로 단축
                 )
 
                 if response.status_code == 200:
                     v4_data = response.json()
                     if v4_data and 'taxon' in v4_data:
                         scientific_name = v4_data['taxon'].get('scientific_name')
-            except asyncio.TimeoutError:
-            except Exception as e:
-            # ========================================
-            # Step 3.5: scientific_name_hint가 있으면 fallback으로 사용
-            # ========================================
-            if not scientific_name and scientific_name_hint:
-                scientific_name = scientific_name_hint
+            except (asyncio.TimeoutError, Exception):
+                pass
             # ========================================
             # Step 4: 학명 없으면 에러 응답 반환 (None 대신)
             # ========================================
@@ -1414,32 +1472,43 @@ class IUCNService:
                 }
 
             # ========================================
-            # Step 5: 학명으로 v4 데이터 조회
+            # Step 5: 학명으로 v4 데이터 조회 + Wikipedia 병렬 호출 (최적화)
             # ========================================
             v3_data = None
-            try:
-                v4_response = await asyncio.wait_for(
-                    self.search_by_scientific_name(scientific_name),
-                    timeout=5.0
-                )
-
-                # v4 -> v3 어댑터 적용
-                if v4_response:
-                    v3_data = self._v4_to_v3_adapter(v4_response, scientific_name)
-                else:
-            except asyncio.TimeoutError:
-            except Exception as e:
-            # ========================================
-            # Step 6: Wikipedia 데이터 조회 (항상 영어로 가져옴)
-            # ========================================
             wiki_info = {}
+
+            async def fetch_v4_data():
+                try:
+                    v4_response = await asyncio.wait_for(
+                        self.search_by_scientific_name(scientific_name),
+                        timeout=2.0  # 5초 -> 2초로 단축
+                    )
+                    if v4_response:
+                        return self._v4_to_v3_adapter(v4_response, scientific_name)
+                except (asyncio.TimeoutError, Exception):
+                    pass
+                return None
+
+            async def fetch_wiki_data():
+                try:
+                    return await asyncio.wait_for(
+                        wikipedia_service.get_species_info(scientific_name, lang="en"),
+                        timeout=1.5  # 2초 -> 1.5초로 단축
+                    )
+                except (asyncio.TimeoutError, Exception):
+                    pass
+                return {}
+
+            # 병렬로 v4 API와 Wikipedia 동시 호출 (최대 2초 대기)
             try:
-                wiki_info = await asyncio.wait_for(
-                    wikipedia_service.get_species_info(scientific_name, lang="en"),
-                    timeout=2.0
+                results = await asyncio.wait_for(
+                    asyncio.gather(fetch_v4_data(), fetch_wiki_data(), return_exceptions=True),
+                    timeout=2.5
                 )
+                v3_data = results[0] if not isinstance(results[0], Exception) else None
+                wiki_info = results[1] if not isinstance(results[1], Exception) and results[1] else {}
             except asyncio.TimeoutError:
-            except Exception as e:
+                pass
             # ========================================
             # Step 7: 프론트엔드 호환 응답 구성 (모든 필드 보장)
             # ========================================
@@ -1489,7 +1558,8 @@ class IUCNService:
                     detail_response = await translation_service.translate_species_info(
                         detail_response, target_lang=lang
                     )
-                except Exception as e:
+                except Exception:
+                    pass
             return detail_response
 
         except asyncio.TimeoutError:

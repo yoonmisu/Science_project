@@ -1,0 +1,17 @@
+# Verde Terraform Variables Example
+# Copy this file to terraform.tfvars and fill in the values
+
+# AWS Configuration
+aws_region  = "ap-northeast-2"  # Seoul
+environment = "production"
+app_name    = "verde"
+
+# Domain (optional - leave empty for CloudFront default domain)
+domain_name = ""  # e.g., "verde.example.com"
+
+# Database
+db_password = "your-secure-password-here"
+
+# API Keys (sensitive)
+iucn_api_key   = "your-iucn-api-key-here"
+openai_api_key = "your-openai-api-key-here"

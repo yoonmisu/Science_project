@@ -1,0 +1,104 @@
+# Verde - Local Development Docker Compose
+# For development and testing purposes
+
+version: '3.8'
+
+services:
+  # ============================================
+  # FastAPI Backend
+  # ============================================
+  backend:
+    build:
+      context: ./verde-backend
+      dockerfile: Dockerfile
+    container_name: verde-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=true
+      - IUCN_API_KEY=${IUCN_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DATABASE_URL=sqlite:///./verde.db
+    volumes:
+      - ./verde-backend:/app
+      - backend-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - verde-network
+    restart: unless-stopped
+
+  # ============================================
+  # React Frontend (for local testing)
+  # ============================================
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        - VITE_API_BASE_URL=http://localhost:8000
+    container_name: verde-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - verde-network
+    restart: unless-stopped
+
+  # ============================================
+  # Redis Cache (Optional - for production)
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: verde-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - verde-network
+    restart: unless-stopped
+
+  # ============================================
+  # PostgreSQL + PostGIS (Optional - for production)
+  # ============================================
+  postgres:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: verde-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=verde
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-verde_secret}
+      - POSTGRES_DB=verde
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U verde -d verde"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - verde-network
+    restart: unless-stopped
+
+networks:
+  verde-network:
+    driver: bridge
+
+volumes:
+  backend-data:
+  redis-data:
+  postgres-data:

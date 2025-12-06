@@ -24,8 +24,8 @@ class WikipediaService:
         headers = {
             "User-Agent": "VerdeApp/1.0 (https://github.com/verde-app/verde; verde@example.com)"
         }
-        # 타임아웃을 5초로 설정하여 안정적인 응답 보장
-        self.client = httpx.AsyncClient(timeout=5.0, headers=headers)
+        # 타임아웃을 3초로 단축하여 빠른 응답 보장
+        self.client = httpx.AsyncClient(timeout=3.0, headers=headers)
 
     def _get_base_url(self, lang: str = "en") -> str:
         """언어별 Wikipedia API URL 반환"""
