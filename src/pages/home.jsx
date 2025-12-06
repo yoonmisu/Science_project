@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, ChevronRight, Search } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 import InteractiveDottedMap from '../components/InteractiveDottedMap';
-import { categoryThemes, countryNames, endangeredSpeciesCount, updateSpeciesCount } from '../data/biodiversityData';
+import { categoryThemes, countryNames, updateSpeciesCount, resetColorStats } from '../data/biodiversityData';
 import { fetchSpeciesByCountry, searchSpeciesByName, fetchTrendingSearches, fetchSpeciesDetail, fetchAllCountriesSpeciesCount } from '../services/api';
 import { SpeciesCardSkeletonGrid } from '../components/SpeciesCardSkeleton';
 import ErrorMessage from '../components/ErrorMessage';
@@ -35,6 +35,10 @@ const HomePage = () => {
   const [speciesDetail, setSpeciesDetail] = useState(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
+
+  // 지도 시각화 데이터 로드 상태 (지도 재렌더링 트리거용)
+  const [mapDataVersion, setMapDataVersion] = useState(0);
+  const [isMapDataLoaded, setIsMapDataLoaded] = useState(false);
 
   // API 데이터 사용 (mockData는 제거됨) - 함수 시작 부분으로 이동
   const currentSpeciesData = speciesData || [];
@@ -73,17 +77,29 @@ const HomePage = () => {
   useEffect(() => {
     const loadAllCountriesSpeciesCount = async () => {
       try {
+        // 로딩 시작
+        setIsMapDataLoaded(false);
         console.log(`🗺️ 지도 시각화 데이터 로드 시작 (카테고리: ${category})`);
+
         const countryCounts = await fetchAllCountriesSpeciesCount(category);
 
         // 동적 종 개수 데이터 업데이트
         updateSpeciesCount(countryCounts, category);
         console.log(`✅ 지도 시각화 데이터 업데이트 완료:`, countryCounts);
+
+        // 데이터 로드 완료 표시
+        setIsMapDataLoaded(true);
+
+        // 지도 재렌더링 트리거 (데이터 로드 후)
+        setMapDataVersion(v => v + 1);
       } catch (error) {
         console.error('❌ 지도 시각화 데이터 로드 실패:', error);
+        setIsMapDataLoaded(true); // 실패해도 로딩 상태 해제
       }
     };
 
+    // 색상 통계 캐시 초기화 (카테고리 변경 시)
+    resetColorStats();
     loadAllCountriesSpeciesCount();
   }, [category]);
 
@@ -162,10 +178,10 @@ const HomePage = () => {
     console.log('받은 location 데이터:', location);
     console.log(`국가: ${location.name}, 코드: ${location.code}`);
 
-    // 국가 정보만 저장하고 모달 열기 (좌표는 실제로 사용하지 않으므로 제거)
+    // 국가 코드를 대문자로 변환 (API는 대문자 ISO 코드 사용)
     const newLocation = {
       name: location.name,
-      countryCode: location.code
+      countryCode: location.code?.toUpperCase()
     };
 
     console.log('설정할 selectedLocation:', newLocation);
@@ -197,11 +213,19 @@ const HomePage = () => {
     setSelectedSpecies(species);
     setIsDetailLoading(true);
     setDetailError(null);
+    setSpeciesDetail(null);
 
     try {
       console.log(`📡 상세 정보 API 호출: ID ${species.id}`);
       const detail = await fetchSpeciesDetail(species.id);
       console.log('✅ 상세 정보 수신:', detail);
+
+      // 백엔드에서 에러 응답을 반환한 경우 처리
+      if (detail.error) {
+        console.warn('⚠️ 백엔드 에러 응답:', detail.errorMessage);
+        // 에러가 있어도 데이터는 표시 (기본값으로 채워진 응답)
+      }
+
       setSpeciesDetail(detail);
     } catch (err) {
       console.error('❌ 상세 정보 조회 실패:', err);
@@ -274,6 +298,8 @@ const HomePage = () => {
       try {
         const countryCounts = await fetchAllCountriesSpeciesCount(category);
         updateSpeciesCount(countryCounts, category);
+        // 지도 재렌더링 트리거
+        setMapDataVersion(v => v + 1);
       } catch (error) {
         console.error('❌ 종 개수 로드 실패:', error);
       }
@@ -303,6 +329,9 @@ const HomePage = () => {
         });
         updateSpeciesCount(searchResultCounts, category);
         console.log('📊 검색 결과 종 개수 업데이트:', searchResultCounts);
+
+        // 지도 재렌더링 트리거
+        setMapDataVersion(v => v + 1);
       } else {
         console.log('❌ 검색 결과 없음');
         setFilteredCountries([]);
@@ -505,6 +534,7 @@ const HomePage = () => {
                 highlightColor="#4D625E"
                 category={category}
                 filteredCountries={filteredCountries}
+                dataVersion={mapDataVersion}
                 onCountryClick={handleCountryClick}
               />
             </div>

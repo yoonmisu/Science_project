@@ -63,99 +63,6 @@ export const countryNames = {
   kenya: '케냐'
 };
 
-// 카테고리별 국가 멸종위기종 수 데이터 (ISO Alpha-2 코드 사용)
-// 수치가 높을수록 멸종위기종이 많음
-export const endangeredSpeciesCount = {
-  동물: {
-    'US': 95,  // 미국
-    'CN': 120, // 중국
-    'BR': 130, // 브라질
-    'ID': 115, // 인도네시아
-    'IN': 105, // 인도
-    'AU': 90,  // 호주
-    'MX': 100, // 멕시코
-    'RU': 75,  // 러시아
-    'JP': 65,  // 일본
-    'KR': 45,  // 한국
-    'CA': 70,  // 캐나다
-    'DE': 40,  // 독일
-    'FR': 50,  // 프랑스
-    'GB': 35,  // 영국
-    'AR': 80,  // 아르헨티나
-    'ZA': 85,  // 남아공
-    'KE': 95,  // 케냐
-    'PH': 110, // 필리핀
-    'MY': 105, // 말레이시아
-    'TH': 90   // 태국
-  },
-  식물: {
-    'BR': 140, // 브라질
-    'CN': 110, // 중국
-    'MX': 100, // 멕시코
-    'ID': 115, // 인도네시아
-    'AU': 105, // 호주
-    'IN': 95,  // 인도
-    'US': 85,  // 미국
-    'ZA': 90,  // 남아공
-    'MY': 100, // 말레이시아
-    'PH': 95,  // 필리핀
-    'JP': 55,  // 일본
-    'KR': 40,  // 한국
-    'RU': 60,  // 러시아
-    'CA': 45,  // 캐나다
-    'AR': 75,  // 아르헨티나
-    'KE': 80,  // 케냐
-    'TH': 85,  // 태국
-    'DE': 35,  // 독일
-    'FR': 40,  // 프랑스
-    'GB': 30   // 영국
-  },
-  곤충: {
-    'BR': 125, // 브라질
-    'ID': 110, // 인도네시아
-    'MX': 95,  // 멕시코
-    'CN': 90,  // 중국
-    'IN': 85,  // 인도
-    'AU': 80,  // 호주
-    'US': 75,  // 미국
-    'MY': 95,  // 말레이시아
-    'PH': 90,  // 필리핀
-    'TH': 85,  // 태국
-    'ZA': 70,  // 남아공
-    'KE': 75,  // 케냐
-    'JP': 50,  // 일본
-    'KR': 35,  // 한국
-    'RU': 45,  // 러시아
-    'CA': 40,  // 캐나다
-    'AR': 65,  // 아르헨티나
-    'DE': 30,  // 독일
-    'FR': 35,  // 프랑스
-    'GB': 25   // 영국
-  },
-  해양생물: {
-    'ID': 120, // 인도네시아
-    'PH': 115, // 필리핀
-    'AU': 110, // 호주
-    'US': 100, // 미국
-    'MY': 105, // 말레이시아
-    'JP': 90,  // 일본
-    'CN': 95,  // 중국
-    'BR': 100, // 브라질
-    'MX': 90,  // 멕시코
-    'IN': 85,  // 인도
-    'TH': 95,  // 태국
-    'ZA': 75,  // 남아공
-    'KE': 70,  // 케냐
-    'KR': 60,  // 한국
-    'RU': 65,  // 러시아
-    'CA': 70,  // 캐나다
-    'AR': 75,  // 아르헨티나
-    'DE': 40,  // 독일
-    'FR': 50,  // 프랑스
-    'GB': 55   // 영국
-  }
-};
-
 // 동적 종 개수 저장소 (실시간 API 데이터 기반)
 let dynamicSpeciesCount = {};
 
@@ -169,7 +76,13 @@ export const updateSpeciesCount = (countData, category) => {
     dynamicSpeciesCount[category] = {};
   }
   dynamicSpeciesCount[category] = { ...dynamicSpeciesCount[category], ...countData };
-  console.log(`📊 [updateSpeciesCount] ${category} 업데이트:`, dynamicSpeciesCount[category]);
+  const countryCount = Object.keys(dynamicSpeciesCount[category]).length;
+  console.log(`📊 [updateSpeciesCount] ${category} 업데이트: ${countryCount}개 국가`);
+  console.log(`   국가 목록: ${Object.keys(dynamicSpeciesCount[category]).join(', ')}`);
+  console.log(`   샘플 데이터:`, Object.entries(dynamicSpeciesCount[category]).slice(0, 5));
+
+  // 디버그 캐시 초기화 (새 데이터가 로드되었으므로)
+  debugLogCache = {};
 };
 
 /**
@@ -190,44 +103,146 @@ export const getSpeciesCount = (category) => {
   return dynamicSpeciesCount[category] || {};
 };
 
-// 색상 강도 계산 함수 (데이터가 있는 국가들끼리만 비교)
+// 색상 분포 통계 캐시 (디버깅 및 성능 최적화)
+let colorStatsCache = {};
+
+/**
+ * 색상 강도 계산 함수 (동적 데이터 기반 5단계 시각화)
+ *
+ * API에서 받은 실제 종 개수 데이터를 기반으로:
+ * 1. 모든 국가의 종 개수를 수집
+ * 2. 순위 기반으로 5그룹으로 분할
+ * 3. 각 국가에 해당하는 색상 반환
+ *
+ * 반환값:
+ * - { color: string, hasData: true } : 종이 있는 국가 (색상 표시)
+ * - { color: null, hasData: false } : 종이 없는 국가 (회색 표시)
+ * - { color: null, hasData: true, loading: true } : 데이터 로딩 중 (기본 색상)
+ *
+ * @param {string} category - 카테고리 (동물, 식물, 곤충, 해양생물)
+ * @param {string} countryCode - ISO 국가 코드
+ * @returns {{ color: string|null, hasData: boolean, loading?: boolean }}
+ */
+// 디버그 로그 캐시 (동일 호출 반복 방지)
+let debugLogCache = {};
+
 export const getColorIntensity = (category, countryCode) => {
   const colors = categoryThemes[category]?.colors || categoryThemes['동물'].colors;
-  const minColor = '#f0f0f0';  // 데이터 없는 경우: 연한 회색
+  const NO_DATA = { color: null, hasData: false };
+  const LOADING = { color: colors[2], hasData: true, loading: true }; // 로딩 중: 중간 색상
 
-  // 동적 데이터만 사용 (실시간 API) - 정적 데이터 fallback 제거
+  // 동적 데이터 가져오기 (API에서 로드된 실시간 데이터)
   const dynamicData = dynamicSpeciesCount[category];
-  if (dynamicData && Object.keys(dynamicData).length > 0) {
-    const count = dynamicData[countryCode] || 0;
 
-    // 데이터가 없는 경우: 최소 디자인 (연한 회색)
-    if (count === 0) return minColor;
+  // 디버그: 첫 5개 국가에 대해서만 로그 (KR, US, JP, CN, BR)
+  const debugCountries = ['KR', 'US', 'JP', 'CN', 'BR'];
+  const upperCode = countryCode?.toUpperCase();
+  const shouldDebug = debugCountries.includes(upperCode);
+  const debugKey = `${category}_${upperCode}`;
 
-    // 데이터가 있는 국가들만 필터링
-    const validCounts = Object.values(dynamicData).filter(c => c > 0);
-
-    if (validCounts.length === 0) return minColor;
-
-    // 데이터가 있는 국가들 중에서 최소/최대값 계산
-    const minCount = Math.min(...validCounts);
-    const maxCount = Math.max(...validCounts);
-
-    // 단일 값인 경우 중간 색상
-    if (minCount === maxCount) return colors[2];
-
-    // 데이터가 있는 국가들끼리만 비교하여 5등분
-    const range = maxCount - minCount;
-    const step = range / 5;
-    const normalizedCount = count - minCount;
-
-    // 5개 그룹으로 균등 분할
-    if (normalizedCount <= step) return colors[0];        // 0-20%
-    if (normalizedCount <= step * 2) return colors[1];    // 20-40%
-    if (normalizedCount <= step * 3) return colors[2];    // 40-60%
-    if (normalizedCount <= step * 4) return colors[3];    // 60-80%
-    return colors[4];                                      // 80-100%
+  // 데이터가 아직 로드되지 않은 경우: 로딩 상태 (기본 색상 표시)
+  // 이렇게 하면 데이터 로드 전에도 지도에 색상이 표시됨
+  if (!dynamicData || Object.keys(dynamicData).length === 0) {
+    if (shouldDebug && !debugLogCache[debugKey + '_loading']) {
+      debugLogCache[debugKey + '_loading'] = true;
+      console.log(`🔍 [getColorIntensity] ${category}/${upperCode}: 데이터 없음 → LOADING`);
+    }
+    return LOADING;
   }
 
-  // 동적 데이터가 없으면 기본 회색 반환 (정적 데이터 fallback 제거)
-  return minColor;
+  // 대소문자 무시하고 국가 코드 매칭
+  const count = dynamicData[upperCode] || dynamicData[countryCode];
+
+  // 해당 국가 데이터가 없는 경우: 캐시에 없는 국가
+  // - count가 undefined/null이면 캐시에 없음
+  // - IUCN API에서 데이터를 제공하지 않는 국가이므로 중간 색상으로 표시 (클릭하면 API 호출 가능)
+  if (count === undefined || count === null) {
+    if (shouldDebug && !debugLogCache[debugKey + '_nodata']) {
+      debugLogCache[debugKey + '_nodata'] = true;
+      console.log(`🔍 [getColorIntensity] ${category}/${upperCode}: count=${count} → 캐시 미포함 (중간색상)`);
+      console.log(`   dynamicData keys: ${Object.keys(dynamicData).slice(0, 10).join(', ')}`);
+    }
+    // 캐시에 없는 국가도 중간 색상으로 표시 (클릭 가능하게 유지)
+    return { color: colors[1], hasData: true, notInCache: true };
+  }
+
+  // count가 0인 경우: 실제로 종이 없음 (회색 표시)
+  if (count === 0) {
+    if (shouldDebug && !debugLogCache[debugKey + '_zero']) {
+      debugLogCache[debugKey + '_zero'] = true;
+      console.log(`🔍 [getColorIntensity] ${category}/${upperCode}: count=0 → NO_DATA (회색)`);
+    }
+    return NO_DATA;
+  }
+
+  // 디버그 캐시 초기화 (데이터가 있으면)
+  if (shouldDebug && !debugLogCache[debugKey + '_hasdata']) {
+    debugLogCache[debugKey + '_hasdata'] = true;
+    console.log(`🔍 [getColorIntensity] ${category}/${upperCode}: count=${count} → 색상 계산 진행`);
+  }
+
+  // 유효한 종 개수만 필터링 (1개 이상)
+  const validCounts = Object.values(dynamicData).filter(c => c > 0);
+
+  if (validCounts.length === 0) {
+    return NO_DATA;
+  }
+
+  // 고유값 정렬 (5단계 분할 기준)
+  const sortedUniqueCounts = [...new Set(validCounts)].sort((a, b) => a - b);
+  const totalUniqueValues = sortedUniqueCounts.length;
+  const minCount = sortedUniqueCounts[0];
+  const maxCount = sortedUniqueCounts[totalUniqueValues - 1];
+
+  // 통계 캐시 업데이트 (카테고리별 1회만 로그)
+  const cacheKey = `${category}_${totalUniqueValues}`;
+  if (!colorStatsCache[cacheKey]) {
+    colorStatsCache[cacheKey] = true;
+    console.log(`🎨 [${category}] 동적 색상 분포:`);
+    console.log(`   범위: ${minCount} ~ ${maxCount} (${totalUniqueValues}개 고유값)`);
+    console.log(`   고유값: ${sortedUniqueCounts.join(', ')}`);
+  }
+
+  // 모든 값이 같은 경우: 중간 색상
+  if (minCount === maxCount) {
+    return { color: colors[2], hasData: true };
+  }
+
+  // === 로그 스케일 기반 5단계 색상 ===
+  // 실제 값 기반으로 계산 (순위 기반보다 직관적)
+  // 로그 스케일을 사용하여 큰 값의 차이를 압축하고 작은 값의 차이를 확대
+
+  let colorIndex;
+
+  // 로그 스케일 적용 (0 방지를 위해 +1)
+  const logMin = Math.log(minCount + 1);
+  const logMax = Math.log(maxCount + 1);
+  const logValue = Math.log(count + 1);
+
+  // 0~1 사이 정규화 (로그 스케일)
+  const normalizedValue = (logValue - logMin) / (logMax - logMin);
+
+  // 5단계로 분류 (균등 분배)
+  if (normalizedValue < 0.2) {
+    colorIndex = 0;      // 하위 20%: 가장 연한색
+  } else if (normalizedValue < 0.4) {
+    colorIndex = 1;      // 20-40%
+  } else if (normalizedValue < 0.6) {
+    colorIndex = 2;      // 40-60%: 중간
+  } else if (normalizedValue < 0.8) {
+    colorIndex = 3;      // 60-80%
+  } else {
+    colorIndex = 4;      // 상위 20%: 가장 진한색
+  }
+
+  return { color: colors[colorIndex], hasData: true };
+};
+
+/**
+ * 색상 분포 통계 초기화 (카테고리 변경 시 호출)
+ */
+export const resetColorStats = () => {
+  colorStatsCache = {};
+  debugLogCache = {};  // 디버그 로그 캐시도 초기화
+  console.log('🔄 [resetColorStats] 색상 캐시 초기화됨');
 };

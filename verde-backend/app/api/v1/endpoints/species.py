@@ -1,6 +1,13 @@
 from fastapi import APIRouter, Query, Depends, Request
 from typing import Optional, Dict, Any, List
 from app.services.iucn_service import iucn_service
+from app.services.species_cache_builder import get_cached_counts, SPECIES_COUNT_CACHE
+from app.services.search_index import (
+    search_species as search_species_index,
+    get_species_countries,
+    load_search_index,
+    KEYWORD_INDEX
+)
 from app.database import get_db
 from app.models.search_history import SearchHistory
 from sqlalchemy.orm import Session
@@ -9,6 +16,12 @@ from datetime import datetime, timedelta
 import difflib
 
 router = APIRouter()
+
+# 서버 시작 시 검색 인덱스 로드
+try:
+    load_search_index()
+except Exception as e:
+    print(f"⚠️ 검색 인덱스 로드 실패: {e}")
 
 # 한글-영문 종 이름 매핑 (확장된 버전)
 SPECIES_TRANSLATIONS = {
@@ -196,66 +209,64 @@ async def search_species(
 ):
     """
     종 이름으로 검색하여 해당 종이 서식하는 국가 목록을 반환합니다.
+
+    ⚡ 최적화된 검색:
+    - 로컬 검색 인덱스 사용 (즉시 응답)
     - 한글 지원 (예: 판다, 호랑이, 곰)
+    - 영어 지원 (예: tiger, panda, elephant)
+    - 학명 지원 (예: Panthera tigris)
     - 오타 허용 (퍼지 매칭)
     - 부분 일치 지원
-    - 매칭된 종의 카테고리 정보 반환
-    - IP 기반 중복 검색 제외 (통계)
+
+    Args:
+        query: 검색어 (한글/영어/학명)
+        category: 카테고리 필터 (선택사항)
+
+    Returns:
+        {query, countries, total, category, matched_species}
     """
     print(f"🔍 검색 요청: '{query}' (카테고리: {category})")
-    
+
     # 클라이언트 IP 추출
     client_ip = request.client.host if request.client else "unknown"
 
-    # 한글을 영문으로 번역
-    search_terms = translate_query(query)
-    print(f"📝 검색어 확장: {search_terms}")
+    # === 1단계: 로컬 인덱스 검색 (즉시) ===
+    countries, matched_name, matched_category = get_species_countries(query, category)
 
-    # 여러 국가에서 종 검색
-    test_countries = ['KR', 'US', 'RU', 'CN', 'JP', 'BR', 'ID', 'IN', 'AU', 'MX']
-    matching_countries = []
-    matched_category = None  # 매칭된 종의 카테고리
+    # 검색 결과 로깅
+    if countries:
+        print(f"✅ 로컬 인덱스 매칭: '{matched_name}' → {len(countries)}개 국가")
+        print(f"   국가: {countries}")
+        print(f"   카테고리: {matched_category}")
+    else:
+        print(f"⚠️ 로컬 인덱스에서 매칭 없음: '{query}'")
 
-    for country_code in test_countries:
-        # 카테고리 필터링이 iucn_service에서 처리됨
-        species_list = await iucn_service.get_species_by_country(country_code, category)
+        # === 2단계: 폴백 - 기존 번역 기반 검색 ===
+        search_terms = translate_query(query)
+        print(f"📝 번역 기반 검색: {search_terms}")
 
-        # 종 이름으로 검색 (common_name, scientific_name)
-        for species in species_list:
-            common_name = species.get("common_name", "").lower()
-            scientific_name = species.get("scientific_name", "").lower()
+        # 로컬 인덱스의 키워드와 퍼지 매칭
+        from app.services.search_index import fuzzy_match_keyword, SPECIES_DATA
 
-            # 각 검색어로 체크
-            found = False
-            for term in search_terms:
-                term_lower = term.lower()
+        for term in search_terms:
+            matched_species = fuzzy_match_keyword(term, threshold=0.5)
+            if matched_species:
+                for sci_name in matched_species:
+                    info = SPECIES_DATA.get(sci_name, {})
+                    for country in info.get("countries", []):
+                        if country not in countries:
+                            countries.append(country)
+                    if not matched_name:
+                        matched_name = info.get("korean_name") or info.get("common_name") or sci_name
+                        matched_category = info.get("category")
 
-                # 1. 정확한 부분 일치
-                if term_lower in common_name or term_lower in scientific_name:
-                    found = True
-                    break
+        if countries:
+            print(f"✅ 번역 기반 매칭: {len(countries)}개 국가")
 
-                # 2. 퍼지 매칭 (오타 허용, threshold 낮춤)
-                if fuzzy_match(term_lower, common_name, threshold=0.55) or \
-                   fuzzy_match(term_lower, scientific_name, threshold=0.55):
-                    found = True
-                    break
-
-            if found:
-                if country_code not in matching_countries:
-                    matching_countries.append(country_code)
-                    # 첫 번째 매칭된 종의 카테고리 저장
-                    if matched_category is None:
-                        matched_category = species.get("category", "동물")
-                    print(f"✅ 매칭: {country_code} - {common_name} ({scientific_name}) [{matched_category}]")
-                break
-
-    print(f"🎯 최종 결과: {len(matching_countries)}개 국가 - {matching_countries} (카테고리: {matched_category})")
-
-    # IP 기반 중복 검색 확인 (같은 IP에서 동일 검색어 연속 입력 시 카운트 제외)
+    # IP 기반 중복 검색 확인
     last_query = iucn_service.last_search_cache.get(client_ip)
     is_duplicate = last_query and last_query.lower() == query.lower()
-    
+
     # 마지막 검색어 업데이트
     iucn_service.last_search_cache[client_ip] = query
 
@@ -265,22 +276,25 @@ async def search_species(
             search_record = SearchHistory(
                 query=query,
                 category=matched_category,
-                result_count=len(matching_countries)
+                result_count=len(countries)
             )
             db.add(search_record)
             db.commit()
-            print(f"💾 검색 기록 저장: '{query}' (결과: {len(matching_countries)}개)")
+            print(f"💾 검색 기록 저장: '{query}' (결과: {len(countries)}개)")
         except Exception as e:
             print(f"⚠️ 검색 기록 저장 실패: {e}")
             db.rollback()
     else:
         print(f"🔄 중복 검색 (IP: {client_ip}): '{query}' - 통계 제외")
 
+    print(f"🎯 최종 결과: {len(countries)}개 국가 - {countries} (카테고리: {matched_category})")
+
     return {
         "query": query,
-        "countries": matching_countries,
-        "total": len(matching_countries),
-        "category": matched_category  # 매칭된 카테고리 추가
+        "countries": countries,
+        "total": len(countries),
+        "category": matched_category,
+        "matched_species": matched_name  # 매칭된 종 이름 추가
     }
 
 @router.get("/trending", response_model=Dict[str, Any])
@@ -490,96 +504,35 @@ async def get_all_countries_species_count(
     category: Optional[str] = None
 ):
     """
-    전 세계 모든 국가의 종 개수를 조회합니다 (지도 시각화용).
+    사전 계산된 캐시에서 각 국가별 카테고리별 종 개수를 반환합니다.
 
-    국가별 데이터가 없으면 대륙별 fallback 사용
-    Regional Fallback Pattern으로 전 세계 모든 국가 커버
+    ⚡ 최적화:
+    - 서버 시작 시 JSON 파일에서 로드된 캐시 사용
+    - 실시간 API 호출 없이 즉시 응답 (< 10ms)
 
     Args:
-        category: 카테고리 필터 (선택사항, 기본값: '동물')
+        category: 카테고리 필터 (동물, 식물, 곤충, 해양생물)
 
     Returns:
-        { 'KR': 10, 'US': 15, 'RU': 8, ... }
+        { 'KR': 56, 'US': 100, 'BR': 89, ... } (카테고리별 종 개수)
     """
-    try:
-        from app.services.country_species_map import COUNTRY_SPECIES_MAP, CONTINENT_SPECIES_MAP
+    category = category or "동물"
+    print(f"📊 [{category}] 국가별 종 개수 조회 (캐시)")
 
-        category = category or "동물"
-        print(f"📊 전 세계 국가의 종 개수 조회 시작 (카테고리: {category})")
+    # 캐시에서 조회
+    country_counts = get_cached_counts(category)
 
-        # ISO Alpha-2 전체 국가 목록 (195개국)
-        all_countries = [
-            # 아시아
-            'KR', 'KP', 'JP', 'CN', 'TW', 'HK', 'MO', 'MN', 'VN', 'TH', 'LA', 'KH', 'MM', 'MY',
-            'SG', 'BN', 'ID', 'PH', 'TL', 'IN', 'PK', 'BD', 'LK', 'NP', 'BT', 'MV', 'AF', 'IR',
-            'IQ', 'SY', 'LB', 'JO', 'IL', 'PS', 'SA', 'YE', 'OM', 'AE', 'QA', 'BH', 'KW', 'TR',
-            'CY', 'GE', 'AM', 'AZ', 'KZ', 'UZ', 'TM', 'KG', 'TJ',
+    if country_counts:
+        counts = list(country_counts.values())
+        print(f"✅ [{category}] 캐시 결과: {len(country_counts)}개 국가")
+        print(f"   범위: {min(counts)} ~ {max(counts)}")
+        sample = dict(list(country_counts.items())[:5])
+        print(f"   샘플: {sample}")
+    else:
+        print(f"⚠️ [{category}] 캐시 데이터 없음 - 캐시 빌드 필요")
+        print(f"   실행: python -m app.services.species_cache_builder")
 
-            # 유럽
-            'GB', 'IE', 'FR', 'ES', 'PT', 'AD', 'MC', 'IT', 'SM', 'VA', 'MT', 'GR', 'AL', 'MK',
-            'RS', 'ME', 'BA', 'HR', 'SI', 'BG', 'RO', 'MD', 'UA', 'BY', 'LT', 'LV', 'EE', 'PL',
-            'CZ', 'SK', 'HU', 'AT', 'CH', 'LI', 'DE', 'NL', 'BE', 'LU', 'DK', 'SE', 'NO', 'FI',
-            'IS', 'RU',
-
-            # 아프리카
-            'EG', 'LY', 'TN', 'DZ', 'MA', 'EH', 'MR', 'ML', 'NE', 'TD', 'SD', 'SS', 'ER', 'DJ',
-            'SO', 'ET', 'KE', 'UG', 'RW', 'BI', 'TZ', 'MZ', 'MW', 'ZM', 'ZW', 'BW', 'NA', 'ZA',
-            'LS', 'SZ', 'AO', 'CD', 'CG', 'GA', 'GQ', 'CM', 'CF', 'ST', 'GH', 'TG', 'BJ', 'NG',
-            'SN', 'GM', 'GW', 'GN', 'SL', 'LR', 'CI', 'BF', 'CV', 'SC', 'KM', 'MU', 'MG',
-
-            # 북미
-            'US', 'CA', 'MX', 'GT', 'BZ', 'SV', 'HN', 'NI', 'CR', 'PA', 'CU', 'JM', 'HT', 'DO',
-            'BS', 'TT', 'BB', 'GD', 'LC', 'VC', 'AG', 'DM', 'KN', 'PR',
-
-            # 남미
-            'CO', 'VE', 'GY', 'SR', 'BR', 'EC', 'PE', 'BO', 'PY', 'UY', 'AR', 'CL',
-
-            # 오세아니아
-            'AU', 'NZ', 'PG', 'FJ', 'SB', 'VU', 'WS', 'TO', 'KI', 'TV', 'NR', 'PW', 'FM', 'MH'
-        ]
-
-        country_counts = {}
-
-        # 최적화: COUNTRY_SPECIES_MAP에서 직접 개수 계산 (API 호출 없음 - 즉시 응답)
-        for country_code, country_data in COUNTRY_SPECIES_MAP.items():
-            if isinstance(country_data, dict):
-                # 카테고리별 구조: {"동물": [...], "식물": [...], ...}
-                if category in country_data:
-                    country_counts[country_code] = len(country_data[category])
-                else:
-                    country_counts[country_code] = 0
-            elif isinstance(country_data, list):
-                # 기존 리스트 구조 (동물만)
-                if category == "동물":
-                    country_counts[country_code] = len(country_data)
-                else:
-                    country_counts[country_code] = 0
-
-        # 추가: 나머지 국가들은 Regional Fallback으로 대륙 데이터 개수 사용
-        for country_code in all_countries:
-            if country_code not in country_counts:
-                # 대륙 코드 획득
-                continent_code = iucn_service._get_continent_code(country_code)
-
-                if continent_code and continent_code in CONTINENT_SPECIES_MAP:
-                    continent_data = CONTINENT_SPECIES_MAP[continent_code]
-                    if isinstance(continent_data, dict) and category in continent_data:
-                        country_counts[country_code] = len(continent_data[category])
-                    elif isinstance(continent_data, list) and category == "동물":
-                        country_counts[country_code] = len(continent_data)
-                    else:
-                        country_counts[country_code] = 0
-                else:
-                    country_counts[country_code] = 0
-
-        print(f"✅ [최적화] 종 개수 계산 완료: {len(country_counts)}개 국가")
-
-        return country_counts
-    except Exception as e:
-        print(f"❌ 국가별 종 개수 조회 실패: {e}")
-        import traceback
-        traceback.print_exc()
-        return {}
+    return country_counts
 
 @router.get("/{species_id}", response_model=Dict[str, Any])
 async def get_species_detail(species_id: int):

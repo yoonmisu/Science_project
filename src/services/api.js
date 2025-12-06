@@ -213,6 +213,11 @@ export const fetchSpeciesDetail = async (speciesId) => {
 
     console.log(`✅ 상세 정보 수신 완료: ${response.name}`);
 
+    // 에러 응답 처리 (백엔드에서 error 필드를 포함한 경우)
+    if (response.error) {
+      console.warn(`⚠️ 상세 정보 조회 실패: ${response.error_message}`);
+    }
+
     return {
       id: response.id,
       name: response.name,
@@ -220,12 +225,15 @@ export const fetchSpeciesDetail = async (speciesId) => {
       commonName: response.common_name,
       category: response.category,
       country: response.country,
-      image: response.image || '🌱',
+      image: response.image || '',
       color: response.color || 'green',
       description: response.description || '',
       status: response.status,
       population: response.population,
+      habitat: response.habitat,
       threats: response.threats || [],
+      error: response.error || false,
+      errorMessage: response.error_message || null,
     };
   } catch (error) {
     console.error('❌ fetchSpeciesDetail 오류:', error);

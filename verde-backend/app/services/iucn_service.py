@@ -1,5 +1,4 @@
 from app.services.wikipedia_service import wikipedia_service
-from app.services.country_species_map import COUNTRY_SPECIES_MAP, COUNTRY_NAMES, CONTINENT_SPECIES_MAP
 import asyncio
 import cloudscraper
 import pycountry
@@ -8,17 +7,123 @@ from app.core.config import settings
 from datetime import datetime, timedelta
 from functools import partial, lru_cache
 
-# Continent detection imports
+# Continent detection (동적 국가 지원을 위해 유지)
 try:
     import pycountry_convert as pc
 except ImportError:
     pc = None
-    print("⚠️ pycountry_convert not installed. Continent fallback will use manual mapping.")
+    print("⚠️ pycountry_convert not installed. Will use pycountry only.")
 
 class IUCNService:
     # 육상 척추동물 클래스 (포유류, 조류, 파충류, 양서류)
     TERRESTRIAL_VERTEBRATE_CLASSES = ['MAMMALIA', 'AVES', 'REPTILIA', 'AMPHIBIA']
-    
+
+    # 카테고리 -> IUCN 분류군 매핑 (동적 필터링용)
+    CATEGORY_TO_CLASSES = {
+        "동물": ['MAMMALIA', 'AVES', 'REPTILIA', 'AMPHIBIA'],  # 포유류, 조류, 파충류, 양서류
+        "식물": ['LILIOPSIDA', 'MAGNOLIOPSIDA', 'PINOPSIDA', 'POLYPODIOPSIDA', 'CYCADOPSIDA', 'GINKGOOPSIDA', 'GNETOPSIDA'],  # 식물 클래스들
+        "곤충": ['INSECTA'],  # 곤충
+        "해양생물": ['ACTINOPTERYGII', 'CHONDRICHTHYES', 'MALACOSTRACA', 'CEPHALOPODA', 'ANTHOZOA', 'MAMMALIA'],  # 어류, 갑각류, 두족류, 산호, 해양포유류
+    }
+
+    # 해양생물 판별용 키워드 (서식지 또는 과학명 기반)
+    MARINE_KEYWORDS = ['marine', 'ocean', 'sea', 'coral', 'whale', 'dolphin', 'shark', 'turtle', 'dugong', 'manatee']
+
+    # 지도/분포도 이미지 필터링 키워드 (URL 또는 파일명에 포함되면 제외)
+    MAP_IMAGE_KEYWORDS = [
+        'map', 'Map', 'MAP',
+        'range', 'Range', 'RANGE',
+        'distribution', 'Distribution',
+        'habitat', 'Habitat',
+        'area', 'Area',
+        'location', 'Location',
+        'spread', 'Spread',
+        'geographic', 'Geographic',
+        'territory', 'Territory',
+        '_dis.', '_dis_',  # distribution 약어
+        'LocationMap', 'location_map',
+        'AreaMap', 'area_map',
+        'RangeMap', 'range_map',
+        'Locator', 'locator',
+        'BlankMap', 'Blank_map',
+        'svg',  # 대부분의 지도는 SVG
+    ]
+
+    @staticmethod
+    def is_valid_species_image(image_url: str) -> bool:
+        """
+        이미지 URL이 유효한 종 사진인지 확인 (지도/분포도 이미지 필터링)
+
+        Returns:
+            True: 유효한 종 사진
+            False: 지도/분포도 이미지 또는 빈 URL
+        """
+        if not image_url:
+            return False
+
+        # URL을 소문자로 변환하여 검사
+        url_lower = image_url.lower()
+
+        # 지도 이미지 키워드 체크
+        for keyword in IUCNService.MAP_IMAGE_KEYWORDS:
+            if keyword.lower() in url_lower:
+                return False
+
+        # SVG 이미지는 대부분 지도이므로 제외
+        if url_lower.endswith('.svg'):
+            return False
+
+        # 추가 패턴 체크: 국가명이 포함된 지도
+        map_patterns = [
+            'in_europe', 'in_asia', 'in_africa', 'in_america',
+            'in_australia', 'world_', 'globe_', 'earth_',
+            'country_', 'region_', 'continent_',
+        ]
+        for pattern in map_patterns:
+            if pattern in url_lower:
+                return False
+
+        return True
+
+    # 국가별 대표 동물 (IUCN API에서 누락되는 대표 포유류)
+    # 학명으로 매핑하여 IUCN taxon API에서 직접 조회
+    ICONIC_ANIMALS = {
+        # 중국
+        'CN': ['Ailuropoda melanoleuca', 'Panthera tigris', 'Rhinopithecus roxellana', 'Ailurus fulgens'],  # 판다, 호랑이, 황금원숭이, 레서판다
+        # 러시아
+        'RU': ['Ursus maritimus', 'Panthera tigris', 'Ursus arctos', 'Canis lupus'],  # 북극곰, 호랑이, 불곰, 늑대
+        # 일본
+        'JP': ['Macaca fuscata', 'Naemorhedus crispus', 'Ursus thibetanus'],  # 일본원숭이, 일본산양, 반달가슴곰
+        # 한국
+        'KR': ['Ursus thibetanus', 'Panthera pardus', 'Naemorhedus caudatus', 'Neophocaena asiaeorientalis'],  # 반달가슴곰, 표범, 산양, 상괭이
+        # 미국
+        'US': ['Ursus americanus', 'Bison bison', 'Puma concolor', 'Ursus arctos'],  # 흑곰, 바이슨, 퓨마, 불곰
+        # 캐나다
+        'CA': ['Ursus maritimus', 'Alces alces', 'Castor canadensis', 'Ursus arctos'],  # 북극곰, 무스, 비버, 불곰
+        # 호주
+        'AU': ['Phascolarctos cinereus', 'Macropus rufus', 'Ornithorhynchus anatinus', 'Vombatus ursinus'],  # 코알라, 붉은캥거루, 오리너구리, 웜뱃
+        # 브라질
+        'BR': ['Panthera onca', 'Tapirus terrestris', 'Myrmecophaga tridactyla', 'Bradypus variegatus'],  # 재규어, 맥, 큰개미핥기, 세줄나무늘보
+        # 인도
+        'IN': ['Panthera tigris', 'Elephas maximus', 'Rhinoceros unicornis', 'Panthera leo'],  # 호랑이, 아시아코끼리, 인도코뿔소, 사자
+        # 케냐
+        'KE': ['Loxodonta africana', 'Panthera leo', 'Giraffa camelopardalis', 'Diceros bicornis'],  # 아프리카코끼리, 사자, 기린, 검은코뿔소
+        # 남아프리카
+        'ZA': ['Loxodonta africana', 'Panthera leo', 'Ceratotherium simum', 'Diceros bicornis'],  # 코끼리, 사자, 흰코뿔소, 검은코뿔소
+        # 독일
+        'DE': ['Lynx lynx', 'Canis lupus', 'Sus scrofa', 'Cervus elaphus'],  # 스라소니, 늑대, 멧돼지, 붉은사슴
+        # 영국
+        'GB': ['Cervus elaphus', 'Meles meles', 'Vulpes vulpes', 'Lutra lutra'],  # 붉은사슴, 오소리, 여우, 수달
+        # 프랑스
+        'FR': ['Ursus arctos', 'Lynx lynx', 'Canis lupus', 'Cervus elaphus'],  # 불곰, 스라소니, 늑대, 붉은사슴
+        # 멕시코
+        'MX': ['Panthera onca', 'Puma concolor', 'Tapirus bairdii', 'Ursus americanus'],  # 재규어, 퓨마, 중앙아메리카맥, 흑곰
+        # 인도네시아
+        'ID': ['Pongo pygmaeus', 'Panthera tigris', 'Rhinoceros sondaicus', 'Elephas maximus'],  # 오랑우탄, 호랑이, 자바코뿔소, 코끼리
+        # 뉴질랜드
+        'NZ': ['Apteryx mantelli', 'Apteryx australis'],  # 키위 (조류지만 대표적)
+    }
+
     def __init__(self):
         # ========================================
         # v4 API 설정 (Cloudflare 우회)
@@ -39,8 +144,10 @@ class IUCNService:
         self.country_cache: Dict[str, Dict[str, Any]] = {}
         # 종별 데이터 캐시 (학명 기반, LRU)
         self.species_cache: Dict[str, Dict[str, Any]] = {}
+        # ID -> 종 데이터 캐시 (상세 조회용)
+        self.id_to_species_cache: Dict[int, Dict[str, Any]] = {}
         self.cache_ttl = timedelta(hours=1)
-        
+
         # IP별 마지막 검색어 캐시 (중복 검색 방지용)
         self.last_search_cache: Dict[str, str] = {}
     
@@ -294,267 +401,823 @@ class IUCNService:
         print(f"⚠️ 대륙 매핑 실패: '{country_code}' (알 수 없는 국가)")
         return None
 
+    # 해양포유류 목(Order) - 고래, 돌고래, 물개 등
+    # 참고: IUCN API는 고래를 ARTIODACTYLA(우제류)로 분류하므로 family_name으로 판별해야 함
+    MARINE_MAMMAL_ORDERS = ['CETACEA', 'SIRENIA', 'CARNIVORA']  # 고래목, 해우목 (레거시 호환)
+
+    # 해양포유류 과(Family) - 고래, 돌고래, 해우, 물개 등
+    MARINE_MAMMAL_FAMILIES = [
+        # 고래류 (Cetaceans) - 수염고래, 이빨고래
+        'BALAENIDAE',       # 참고래과 (Right whales)
+        'BALAENOPTERIDAE',  # 수염고래과 (Rorquals: 밍크고래, 대왕고래, 혹등고래 등)
+        'ESCHRICHTIIDAE',   # 귀신고래과 (Gray whales)
+        'NEOBALAENIDAE',    # 피그미참고래과 (Pygmy right whales)
+        'DELPHINIDAE',      # 돌고래과 (Dolphins, 범고래 포함)
+        'MONODONTIDAE',     # 일각고래과 (Narwhals, Belugas)
+        'PHOCOENIDAE',      # 쇠돌고래과 (Porpoises)
+        'PHYSETERIDAE',     # 향고래과 (Sperm whales)
+        'KOGIIDAE',         # 꼬마향고래과 (Dwarf/Pygmy sperm whales)
+        'ZIPHIIDAE',        # 부리고래과 (Beaked whales)
+        'PLATANISTIDAE',    # 강돌고래과 (River dolphins)
+        'INIIDAE',          # 아마존강돌고래과
+        'PONTOPORIIDAE',    # 라플라타돌고래과
+        'LIPOTIDAE',        # 양쯔강돌고래과
+        # 해우류 (Sirenians)
+        'TRICHECHIDAE',     # 매너티과 (Manatees)
+        'DUGONGIDAE',       # 듀공과 (Dugongs)
+        # 기각류 (Pinnipeds) - 물개, 바다표범, 바다코끼리
+        'OTARIIDAE',        # 물개과 (Eared seals, sea lions)
+        'PHOCIDAE',         # 바다표범과 (True seals)
+        'ODOBENIDAE',       # 바다코끼리과 (Walruses)
+    ]
+
+    # CARNIVORA 중 해양 과(Family) - 레거시 호환용
+    MARINE_CARNIVORA_FAMILIES = ['OTARIIDAE', 'PHOCIDAE', 'ODOBENIDAE']  # 물개, 바다표범, 바다코끼리
+
+    def _determine_category(self, assessment: Dict[str, Any]) -> str:
+        """
+        IUCN assessment 데이터에서 카테고리(동물/식물/곤충/해양생물)를 판별합니다.
+
+        ⚠️ 주의: IUCN API v4 /countries/{code} 엔드포인트는 class_name, kingdom_name을
+        포함하지 않습니다. 따라서 해당 필드가 없으면 기본값 "동물"을 반환합니다.
+
+        Args:
+            assessment: IUCN API v4 assessment 데이터
+
+        Returns:
+            카테고리 문자열 (동물, 식물, 곤충, 해양생물)
+        """
+        # v4 country endpoint에서는 class_name/kingdom_name이 없을 수 있음
+        class_name = assessment.get('class_name', '').upper()
+        kingdom_name = assessment.get('kingdom_name', '').upper()
+        order_name = assessment.get('order_name', '').upper()
+        family_name = assessment.get('family_name', '').upper()
+        systems = assessment.get('systems', [])
+
+        # systems가 없는 경우 빈 리스트로 처리
+        if not isinstance(systems, list):
+            systems = []
+
+        # 해양생물 체크 (시스템에 'Marine' 포함)
+        if any('marine' in str(s).lower() for s in systems if s):
+            return "해양생물"
+
+        # 왕국 기반 분류
+        if kingdom_name == 'PLANTAE':
+            return "식물"
+
+        # 해양포유류 체크 (고래목, 해우목, 기각류)
+        if class_name == 'MAMMALIA':
+            # 고래목(CETACEA)과 해우목(SIRENIA)은 해양생물
+            if order_name in ['CETACEA', 'SIRENIA']:
+                return "해양생물"
+            # 식육목(CARNIVORA) 중 해양 과는 해양생물 (물개, 바다표범 등)
+            if order_name == 'CARNIVORA' and family_name in self.MARINE_CARNIVORA_FAMILIES:
+                return "해양생물"
+
+        # 클래스 기반 분류
+        if class_name == 'INSECTA':
+            return "곤충"
+        elif class_name in ['ACTINOPTERYGII', 'CHONDRICHTHYES', 'CEPHALOPODA', 'MALACOSTRACA']:
+            return "해양생물"
+        elif class_name in self.TERRESTRIAL_VERTEBRATE_CLASSES:
+            return "동물"
+
+        # ⚠️ v4 /countries/{code}에서 class_name이 없는 경우:
+        # 기본값으로 "동물" 반환 (프론트엔드에서 카테고리 필터 선택에 의존)
+        return "동물"
+
+    async def _fetch_country_assessments(self, country_code: str, page: int = 1) -> Dict[str, Any]:
+        """
+        IUCN API v4 /countries/{code} 엔드포인트로 국가별 종 목록을 가져옵니다.
+
+        Args:
+            country_code: ISO Alpha-2 국가 코드
+            page: 페이지 번호 (기본값: 1)
+
+        Returns:
+            API 응답 딕셔너리 (assessments 배열 포함)
+        """
+        url = f"{self.base_url}/countries/{country_code}"
+        params = {
+            "page": page,
+            "latest": "true"  # 최신 평가만
+        }
+
+        try:
+            response = await self._make_request(url, params)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                print(f"⚠️ Country API 오류: {response.status_code}")
+                return {"assessments": []}
+        except Exception as e:
+            print(f"❌ Country API 요청 실패: {e}")
+            return {"assessments": []}
+
+    async def get_species_count_fast(self, country_code: str) -> int:
+        """
+        국가별 멸종위기 점수를 빠르게 계산합니다 (Wikipedia 호출 없음).
+
+        ⚡ 지도 시각화용 최적화:
+        - 1페이지만 조회하여 빠른 응답 (100종 샘플)
+        - 위험 등급별 가중치 점수 계산으로 국가별 다양성 확보
+          - CR (Critically Endangered): 5점
+          - EN (Endangered): 3점
+          - VU (Vulnerable): 2점
+          - NT (Near Threatened): 1점
+          - LC/DD 등: 0점
+        - 캐시 활용으로 반복 호출 시 즉시 응답
+
+        Args:
+            country_code: ISO Alpha-2 국가 코드
+
+        Returns:
+            해당 국가의 멸종위기 가중 점수 (0~500)
+        """
+        # 위험 등급별 가중치
+        RISK_WEIGHTS = {
+            'CR': 5,  # Critically Endangered
+            'EN': 3,  # Endangered
+            'VU': 2,  # Vulnerable
+            'NT': 1,  # Near Threatened
+            'LC': 0,  # Least Concern
+            'DD': 0,  # Data Deficient
+            'NE': 0,  # Not Evaluated
+        }
+
+        try:
+            # 국가 코드 정규화
+            normalized_code = self._normalize_country_code(country_code)
+            if not normalized_code:
+                return 0
+
+            # 캐시 확인 (score 전용)
+            cache_key = f"score_{normalized_code}"
+            if cache_key in self.country_cache:
+                cache_entry = self.country_cache[cache_key]
+                cache_time = cache_entry.get('timestamp')
+                if cache_time and datetime.now() - cache_time < self.cache_ttl:
+                    return cache_entry.get('data', 0)
+
+            # IUCN API 1페이지만 조회 (빠른 응답)
+            url = f"{self.base_url}/countries/{normalized_code}"
+            params = {"page": 1, "latest": "true"}
+
+            response = await self._make_request(url, params)
+
+            if response.status_code != 200:
+                return 0
+
+            data = response.json()
+            assessments = data.get('assessments', [])
+
+            # 위험 등급별 가중 점수 계산
+            score = 0
+            for assessment in assessments:
+                # v4 API: red_list_category_code 필드 사용
+                category_code = assessment.get('red_list_category_code', 'DD')
+                weight = RISK_WEIGHTS.get(category_code, 0)
+                score += weight
+
+            # 캐시 저장
+            self.country_cache[cache_key] = {
+                'data': score,
+                'timestamp': datetime.now()
+            }
+
+            return score
+
+        except Exception as e:
+            print(f"⚠️ Fast score 실패 ({country_code}): {e}")
+            return 0
+
+    async def get_species_count_by_category(self, country_code: str, category: str) -> int:
+        """
+        국가별, 카테고리별 종 개수를 조회합니다.
+
+        ⚡ 지도 시각화용 최적화:
+        - taxon API를 사용하여 class_name 조회
+        - 카테고리별 필터링 후 종 개수 반환
+        - 캐시 활용으로 빠른 응답
+
+        Args:
+            country_code: ISO Alpha-2 국가 코드
+            category: 카테고리 (동물, 식물, 곤충, 해양생물)
+
+        Returns:
+            해당 국가/카테고리의 종 개수
+        """
+        try:
+            # 국가 코드 정규화
+            normalized_code = self._normalize_country_code(country_code)
+            if not normalized_code:
+                return 0
+
+            # 캐시 확인
+            cache_key = f"count_{normalized_code}_{category}"
+            if cache_key in self.country_cache:
+                cache_entry = self.country_cache[cache_key]
+                cache_time = cache_entry.get('timestamp')
+                if cache_time and datetime.now() - cache_time < self.cache_ttl:
+                    return cache_entry.get('data', 0)
+
+            # IUCN API 3페이지 조회 (300종 샘플)
+            all_assessments = []
+            for page in range(1, 4):
+                url = f"{self.base_url}/countries/{normalized_code}"
+                params = {"page": page, "latest": "true"}
+                response = await self._make_request(url, params)
+
+                if response.status_code != 200:
+                    break
+
+                data = response.json()
+                assessments = data.get('assessments', [])
+                if not assessments:
+                    break
+                all_assessments.extend(assessments)
+                if len(assessments) < 100:
+                    break
+
+            if not all_assessments:
+                return 0
+
+            # 카테고리별 필터링 (taxon 정보 조회)
+            count = 0
+
+            # 병렬 처리를 위한 함수
+            async def check_category(assessment: Dict[str, Any]) -> bool:
+                """종의 카테고리 확인"""
+                scientific_name = assessment.get('taxon_scientific_name', '')
+                if not scientific_name:
+                    return False
+
+                # 캐시된 taxon 정보 확인
+                species_cache_key = f"taxon_{scientific_name}"
+                taxon_info = None
+
+                if species_cache_key in self.species_cache:
+                    cache_entry = self.species_cache[species_cache_key]
+                    if cache_entry.get('timestamp') and datetime.now() - cache_entry['timestamp'] < self.cache_ttl:
+                        taxon_info = cache_entry.get('data')
+
+                # 캐시 미스 시 taxon API 호출
+                if not taxon_info:
+                    taxon_info = await self._fetch_taxon_info(scientific_name)
+                    if taxon_info:
+                        self.species_cache[species_cache_key] = {
+                            'data': taxon_info,
+                            'timestamp': datetime.now()
+                        }
+
+                if not taxon_info:
+                    # taxon 정보 없으면 기본값 "동물"로 처리
+                    return category == "동물"
+
+                # 카테고리 판별
+                class_name = taxon_info.get('class_name', '').upper()
+                kingdom_name = taxon_info.get('kingdom_name', '').upper()
+
+                detected_category = "동물"  # 기본값
+
+                if kingdom_name == 'PLANTAE':
+                    detected_category = "식물"
+                elif class_name == 'INSECTA':
+                    detected_category = "곤충"
+                elif class_name in ['ACTINOPTERYGII', 'CHONDRICHTHYES', 'CEPHALOPODA',
+                                   'MALACOSTRACA', 'ANTHOZOA', 'BIVALVIA', 'GASTROPODA']:
+                    detected_category = "해양생물"
+                elif class_name in ['MAMMALIA', 'AVES', 'REPTILIA', 'AMPHIBIA']:
+                    detected_category = "동물"
+                elif kingdom_name == 'ANIMALIA':
+                    detected_category = "동물"
+
+                return detected_category == category
+
+            # 최대 50개만 샘플링하여 카테고리 확인 (성능 고려)
+            sample_size = min(50, len(all_assessments))
+            sample_assessments = all_assessments[:sample_size]
+
+            tasks = [check_category(a) for a in sample_assessments]
+            try:
+                results = await asyncio.wait_for(
+                    asyncio.gather(*tasks, return_exceptions=True),
+                    timeout=30.0
+                )
+                count = sum(1 for r in results if r is True)
+            except asyncio.TimeoutError:
+                count = 0
+
+            # 전체 종 대비 비율로 추정 (샘플링 보정)
+            if sample_size < len(all_assessments) and count > 0:
+                ratio = count / sample_size
+                estimated_count = int(len(all_assessments) * ratio)
+                count = estimated_count
+
+            # 캐시 저장
+            self.country_cache[cache_key] = {
+                'data': count,
+                'timestamp': datetime.now()
+            }
+
+            return count
+
+        except Exception as e:
+            print(f"⚠️ Category count 실패 ({country_code}/{category}): {e}")
+            return 0
+
+    async def _fetch_taxon_info(self, scientific_name: str) -> Optional[Dict[str, Any]]:
+        """
+        학명으로 taxon 상세 정보를 조회합니다.
+        class_name, kingdom_name 등 분류 정보를 얻기 위해 사용합니다.
+
+        Args:
+            scientific_name: 학명 (예: "Panthera tigris")
+
+        Returns:
+            taxon 정보 딕셔너리 또는 None
+        """
+        try:
+            parts = scientific_name.split(' ', 1)
+            if len(parts) < 2:
+                return None
+
+            genus, species = parts[0], parts[1].split()[0] if ' ' in parts[1] else parts[1]
+            url = f"{self.base_url}/taxa/scientific_name"
+            params = {"genus_name": genus, "species_name": species}
+
+            response = await self._make_request(url, params)
+
+            if response.status_code == 200:
+                data = response.json()
+                return data.get('taxon')
+            return None
+        except Exception as e:
+            return None
+
+    async def _fetch_iconic_animals(self, country_code: str) -> List[Dict[str, Any]]:
+        """
+        국가별 대표 동물(판다, 호랑이, 북극곰 등)을 IUCN taxon API로 조회합니다.
+        IUCN /countries/{code} 엔드포인트에서 누락되는 유명 포유류를 보완합니다.
+
+        Args:
+            country_code: ISO Alpha-2 국가 코드
+
+        Returns:
+            대표 동물 데이터 리스트
+        """
+        iconic_names = self.ICONIC_ANIMALS.get(country_code.upper(), [])
+        if not iconic_names:
+            return []
+
+        print(f"🦁 대표 동물 조회 시작: {country_code} ({len(iconic_names)}종)")
+
+        iconic_species = []
+
+        async def fetch_one_iconic(scientific_name: str) -> Optional[Dict[str, Any]]:
+            """단일 대표 동물 데이터 조회"""
+            try:
+                # 캐시 확인
+                cache_key = f"iconic_{scientific_name}"
+                if cache_key in self.species_cache:
+                    cache_entry = self.species_cache[cache_key]
+                    if cache_entry.get('timestamp') and datetime.now() - cache_entry['timestamp'] < self.cache_ttl:
+                        return cache_entry.get('data')
+
+                # taxon 정보 조회
+                taxon_info = await self._fetch_taxon_info(scientific_name)
+                if not taxon_info:
+                    print(f"  ⚠️ {scientific_name}: taxon 조회 실패")
+                    return None
+
+                sis_id = taxon_info.get('sis_id')
+                class_name = (taxon_info.get('class_name') or '').upper()
+
+                # 동물(척추동물)인지 확인
+                if class_name not in ['MAMMALIA', 'AVES', 'REPTILIA', 'AMPHIBIA']:
+                    return None
+
+                # Wikipedia 데이터 조회 (2초 타임아웃)
+                wiki_info = {}
+                try:
+                    wiki_info = await asyncio.wait_for(
+                        wikipedia_service.get_species_info(scientific_name),
+                        timeout=2.0
+                    )
+                except (asyncio.TimeoutError, Exception):
+                    pass
+
+                # 공통 이름 결정
+                common_name = wiki_info.get("common_name")
+                if not common_name:
+                    common_names = taxon_info.get('common_names', [])
+                    if common_names:
+                        common_name = common_names[0].get('name')
+                if not common_name:
+                    common_name = scientific_name
+
+                # 이미지 URL (이미지 없거나 지도 이미지면 필터링)
+                image_url = wiki_info.get("image_url", "")
+                if not self.is_valid_species_image(image_url):
+                    print(f"  ⚠️ {scientific_name}: 유효한 이미지 없음 → 제외")
+                    return None  # 이미지 없거나 지도 이미지인 대표 동물 필터링
+
+                # IUCN 위험 등급 조회 (assessment 엔드포인트)
+                risk_level = "DD"
+                if sis_id:
+                    try:
+                        assess_url = f"{self.base_url}/taxa/sis/{sis_id}/assessments"
+                        assess_resp = await self._make_request(assess_url, {"latest": "true"})
+                        if assess_resp.status_code == 200:
+                            assess_data = assess_resp.json()
+                            assessments = assess_data.get('assessments', [])
+                            if assessments:
+                                risk_level = assessments[0].get('red_list_category_code', 'DD')
+                    except Exception:
+                        pass
+
+                species_data = {
+                    "id": sis_id,
+                    "scientific_name": scientific_name,
+                    "common_name": common_name,
+                    "name": common_name,
+                    "category": "동물",
+                    "image": image_url,
+                    "image_url": image_url,
+                    "description": wiki_info.get("description", f"{common_name} - IUCN {risk_level}"),
+                    "country": country_code.upper(),
+                    "risk_level": risk_level,
+                    "is_iconic": True  # 대표 동물 표시
+                }
+
+                # 캐시에 저장
+                self.species_cache[cache_key] = {
+                    'data': species_data,
+                    'timestamp': datetime.now()
+                }
+
+                # ID 캐시에도 저장
+                if sis_id:
+                    self.id_to_species_cache[sis_id] = {
+                        'data': species_data,
+                        'timestamp': datetime.now()
+                    }
+
+                print(f"  ✅ {scientific_name} → {common_name}")
+                return species_data
+
+            except Exception as e:
+                print(f"  ❌ {scientific_name}: {e}")
+                return None
+
+        # 병렬로 대표 동물 조회 (세마포어로 제한)
+        semaphore = asyncio.Semaphore(5)
+
+        async def limited_fetch(name):
+            async with semaphore:
+                return await fetch_one_iconic(name)
+
+        tasks = [limited_fetch(name) for name in iconic_names]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for result in results:
+            if result and not isinstance(result, Exception):
+                iconic_species.append(result)
+
+        print(f"🦁 대표 동물 조회 완료: {len(iconic_species)}종 확보")
+        return iconic_species
+
     async def get_species_by_country(self, country_code: str, category: str = None) -> List[Dict[str, Any]]:
         """
-        Hybrid Lookup Pattern: 국가별 큐레이션된 종 리스트 + 실시간 v4 API 조회
+        IUCN API v4를 사용하여 국가별 멸종위기종을 동적으로 조회합니다.
 
-        v4 API는 국가별 엔드포인트를 제공하지 않으므로,
-        사전 정의된 대표 종 리스트를 기반으로 실시간 데이터를 병렬 조회합니다.
+        🌍 동적 데이터 조회:
+        - 모든 국가 지원 (하드코딩 없음)
+        - IUCN API v4 /countries/{code} 엔드포인트 사용
+        - taxon API로 class_name 조회하여 카테고리별 필터링 (동물, 식물, 곤충, 해양생물)
+        - Wikipedia 데이터로 이미지/설명 보강
 
         Args:
             country_code: 국가 코드 (ISO Alpha-2)
             category: 카테고리 필터 (동물, 식물, 곤충, 해양생물) - None이면 모든 카테고리
 
-        이점:
-        - 목록은 큐레이션되지만, 멸종위기 등급과 정보는 항상 최신 상태
-        - Wikipedia 데이터로 추가 보강
-        - 개별 종 조회 실패가 전체 응답에 영향을 주지 않음
+        Returns:
+            종 데이터 리스트
         """
         try:
-            # ========================================
-            # [LOG 1/5 - Entry] 메서드 진입 시점
-            # ========================================
             original_input = country_code
             print(f"\n{'='*60}")
             print(f"[ENTRY] get_species_by_country 시작")
             print(f"  입력값: '{original_input}', 카테고리: '{category}'")
 
-            # ========================================
-            # 1. 국가 코드 정규화 (Russia -> RU 변환 등)
-            # ========================================
+            # 1. 국가 코드 정규화
             country_code = self._normalize_country_code(country_code)
-
             if not country_code:
                 print(f"⚠️ 알 수 없는 국가: '{original_input}'")
-                print(f"   지원되는 국가: {', '.join(COUNTRY_SPECIES_MAP.keys())}")
-                print(f"[RETURN] 빈 리스트 반환 (type: {type([])}, len: 0)")
-                print(f"{'='*60}\n")
-                return []  # 명시적으로 빈 리스트 반환 (프론트엔드 Empty State 표시)
+                return []
 
-            print(f"  정규화: '{original_input}' -> '{country_code}'")
-
-            # ========================================
             # 2. 캐시 확인 (카테고리별 캐시)
-            # ========================================
-            cache_key = f"{country_code}_{category or 'all'}"
+            cache_key = f"species_{country_code}_{category or 'all'}"
             if cache_key in self.country_cache:
                 cache_entry = self.country_cache[cache_key]
                 cache_time = cache_entry.get('timestamp')
                 if cache_time and datetime.now() - cache_time < self.cache_ttl:
                     cached_data = cache_entry.get('data', [])
-                    print(f"💾 캐시 히트: {cache_key}")
-                    print(f"[RETURN] 캐시된 데이터 반환 (type: {type(cached_data)}, len: {len(cached_data)})")
-                    print(f"{'='*60}\n")
+                    print(f"💾 캐시 히트: {cache_key} ({len(cached_data)}개)")
                     return cached_data
 
-            # ========================================
-            # [LOG 2/5 - Lookup] COUNTRY_SPECIES_MAP 조회
-            # ========================================
-            country_data = COUNTRY_SPECIES_MAP.get(country_code)
+            # 3. IUCN API v4 /countries/{code} 호출 (10페이지, 1000종 - 다양한 클래스 포함)
+            print(f"🌐 IUCN API 호출: /countries/{country_code}")
+            all_assessments = []
+            for page in range(1, 11):  # 10페이지까지 (1000종) - 더 다양한 클래스 포함
+                response_data = await self._fetch_country_assessments(country_code, page)
+                assessments = response_data.get('assessments', [])
+                if not assessments:
+                    break
+                all_assessments.extend(assessments)
+                if len(assessments) < 100:
+                    break
 
-            # 카테고리별 조회 지원 (dict 구조 vs list 구조)
-            species_list = None
-            species_category_map = {}  # 학명 -> 카테고리 매핑
+            if not all_assessments:
+                print(f"⚠️ 해당 국가의 종 데이터가 없습니다")
+                return []
 
-            if isinstance(country_data, dict):
-                # 새로운 카테고리 구조: {"동물": [...], "식물": [...], ...}
-                if category and category in country_data:
-                    # 특정 카테고리만 반환
-                    species_list = country_data[category]
-                    for species in species_list:
-                        species_category_map[species] = category
-                elif category:
-                    # 요청된 카테고리가 없으면 빈 리스트
-                    species_list = []
-                else:
-                    # 카테고리 지정 없으면 모든 종 반환
-                    species_list = []
-                    for category_name, category_species in country_data.items():
-                        species_list.extend(category_species)
-                        for species in category_species:
-                            species_category_map[species] = category_name
-            elif isinstance(country_data, list):
-                # 기존 리스트 구조 (동물만)
-                if category and category != "동물":
-                    species_list = []  # 동물 외 카테고리 요청 시 빈 리스트
-                else:
-                    species_list = country_data
-                    for species in species_list:
-                        species_category_map[species] = "동물"
+            print(f"📊 총 {len(all_assessments)}개 종 조회됨")
 
-            if species_list is None or len(species_list) == 0:
-                # ========================================
-                # Regional Fallback Pattern 적용
-                # 특정 국가 데이터가 없으면 대륙 데이터로 fallback
-                # ========================================
-                print(f"⚠️ [LOOKUP] Country-specific data not found for '{country_code}'")
-                print(f"   🌍 Attempting Regional Fallback...")
-
-                continent_code = self._get_continent_code(country_code)
-
-                if continent_code:
-                    species_list = CONTINENT_SPECIES_MAP.get(continent_code)
-                    if species_list:
-                        continent_names = {
-                            "AS": "Asia", "EU": "Europe", "AF": "Africa",
-                            "NA": "North America", "SA": "South America",
-                            "OC": "Oceania", "AN": "Antarctica"
-                        }
-                        continent_name = continent_names.get(continent_code, continent_code)
-                        print(f"✅ [FALLBACK] Using regional data for {continent_name} ({continent_code})")
-                        print(f"   Found {len(species_list)} representative species")
-                    else:
-                        print(f"❌ [FALLBACK] No continent data found for '{continent_code}'")
-                        print(f"[RETURN] 빈 리스트 반환 (type: {type([])}, len: 0)")
-                        print(f"{'='*60}\n")
-                        return []
-                else:
-                    print(f"❌ [FALLBACK] Could not determine continent for '{country_code}'")
-                    print(f"   사용 가능한 국가: {', '.join(COUNTRY_SPECIES_MAP.keys())}")
-                    print(f"[RETURN] 빈 리스트 반환 (type: {type([])}, len: 0)")
-                    print(f"{'='*60}\n")
-                    return []
-
-            country_name = COUNTRY_NAMES.get(country_code, country_code)
-            print(f"✅ [LOOKUP] 종 리스트 확인: {len(species_list)}개")
-            print(f"   국가명: {country_name} ({country_code})")
-            print(f"   종 목록: {', '.join(species_list[:3])}{'...' if len(species_list) > 3 else ''}")
-
-            # 병렬 조회 함수: 각 종에 대해 v4 API 호출
-            async def fetch_single_species(scientific_name: str) -> Optional[Dict[str, Any]]:
-                """
-                단일 종 조회 (캐싱 + v4 API + Wikipedia 보강)
-
-                [SAFETY GUARD] Wikipedia 타임아웃 2초, 전체 실패해도 메인 로직 진행
-                """
+            # 4. taxon 정보 조회 + 카테고리 필터링 + Wikipedia 보강 (병렬 처리)
+            async def enrich_and_filter(assessment: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+                """종 데이터 보강 및 카테고리 필터링"""
                 try:
-                    # 종별 캐시 확인
-                    if scientific_name in self.species_cache:
-                        cache_entry = self.species_cache[scientific_name]
-                        cache_time = cache_entry.get('timestamp')
-                        if cache_time and datetime.now() - cache_time < self.cache_ttl:
-                            cached_data = cache_entry.get('data')
-                            if cached_data:
-                                # 캐시된 데이터의 카테고리를 현재 요청의 카테고리로 덮어씀
-                                cached_data = cached_data.copy()
-                                cached_data['category'] = species_category_map.get(scientific_name, "동물")
-                                return cached_data
+                    scientific_name = assessment.get('taxon_scientific_name', '')
+                    sis_id = assessment.get('sis_taxon_id')
+                    risk_level = assessment.get('red_list_category_code', 'DD')
 
-                    # v4 API 호출 (3초 타임아웃)
-                    v4_data = await asyncio.wait_for(
-                        self.search_by_scientific_name(scientific_name),
-                        timeout=3.0
-                    )
-
-                    if not v4_data:
+                    if not scientific_name:
                         return None
 
-                    # v4 -> v3 어댑터 적용
-                    v3_data = self._v4_to_v3_adapter(v4_data, scientific_name)
-                    if not v3_data:
+                    # 종 캐시 확인
+                    species_cache_key = f"taxon_{scientific_name}"
+                    cached_taxon = None
+                    if species_cache_key in self.species_cache:
+                        cache_entry = self.species_cache[species_cache_key]
+                        if cache_entry.get('timestamp') and datetime.now() - cache_entry['timestamp'] < self.cache_ttl:
+                            cached_taxon = cache_entry.get('data')
+
+                    # taxon 정보 조회 (캐시 미스 시)
+                    taxon_info = cached_taxon
+                    if not taxon_info:
+                        taxon_info = await self._fetch_taxon_info(scientific_name)
+                        if taxon_info:
+                            self.species_cache[species_cache_key] = {
+                                'data': taxon_info,
+                                'timestamp': datetime.now()
+                            }
+
+                    # 카테고리 판별 (taxon_info 필수)
+                    # taxon_info가 없으면 정확한 분류가 불가능하므로 제외
+                    if not taxon_info:
+                        return None  # taxon 정보 없음 - 제외
+
+                    class_name = taxon_info.get('class_name', '').upper()
+                    kingdom_name = taxon_info.get('kingdom_name', '').upper()
+                    order_name = taxon_info.get('order_name', '').upper()
+                    family_name = taxon_info.get('family_name', '').upper()
+
+                    # class_name 또는 kingdom_name이 없으면 분류 불가
+                    if not class_name and not kingdom_name:
+                        return None  # 분류 정보 없음 - 제외
+
+                    detected_category = None  # 기본값 없음 (명확한 분류 필요)
+
+                    # 카테고리 결정 (명확한 순서로)
+                    if kingdom_name == 'PLANTAE':
+                        detected_category = "식물"
+                    elif class_name == 'INSECTA' or class_name == 'ARACHNIDA':
+                        detected_category = "곤충"
+                    elif class_name in ['ACTINOPTERYGII', 'CHONDRICHTHYES', 'CEPHALOPODA',
+                                       'MALACOSTRACA', 'ANTHOZOA', 'BIVALVIA', 'GASTROPODA',
+                                       'HOLOTHUROIDEA', 'ECHINOIDEA', 'ASTEROIDEA', 'OPHIUROIDEA',
+                                       'HYDROZOA', 'SCYPHOZOA', 'POLYCHAETA']:
+                        # 해양 무척추동물 및 어류 (해삼, 성게, 불가사리, 조개, 산호, 해파리 등)
+                        detected_category = "해양생물"
+                    elif class_name == 'MAMMALIA':
+                        # 해양포유류 체크 - family_name 기준 (IUCN API는 고래를 ARTIODACTYLA로 분류함)
+                        if family_name in self.MARINE_MAMMAL_FAMILIES:
+                            # 고래과, 돌고래과, 물개과, 바다표범과, 해우과 등은 해양생물
+                            detected_category = "해양생물"
+                        elif order_name in ['CETACEA', 'SIRENIA']:
+                            # 레거시 호환: order_name으로도 체크 (혹시 family가 없을 경우)
+                            detected_category = "해양생물"
+                        else:
+                            # 기타 포유류는 육상 동물
+                            detected_category = "동물"
+                    elif class_name in ['AVES', 'REPTILIA', 'AMPHIBIA']:
+                        # 육상 척추동물만 "동물" 카테고리
+                        detected_category = "동물"
+                    elif kingdom_name == 'ANIMALIA':
+                        # 기타 ANIMALIA는 class_name으로 더 정확히 분류
+                        # 알 수 없는 class는 제외 (잘못된 분류 방지)
                         return None
 
-                    # [DATA VALIDATION] 필수 키 검증
-                    required_keys = ['taxonid', 'scientific_name', 'category']
-                    missing_keys = [key for key in required_keys if key not in v3_data]
-                    if missing_keys:
-                        print(f"⚠️ [VALIDATION] Missing keys in v3_data for {scientific_name}: {missing_keys}")
-                        return None
+                    # 카테고리를 결정하지 못한 경우 제외
+                    if detected_category is None:
+                        return None  # 분류 불가 - 제외
 
-                    # Wikipedia 데이터 보강 (타임아웃 5초)
+                    # 카테고리 필터링
+                    if category and detected_category != category:
+                        return None  # 카테고리 불일치 - 제외
+
+                    # Wikipedia 데이터 조회
                     wiki_info = {}
                     try:
                         wiki_info = await asyncio.wait_for(
                             wikipedia_service.get_species_info(scientific_name),
-                            timeout=5.0
+                            timeout=3.0
                         )
-                    except asyncio.TimeoutError:
-                        print(f"⏱️ Wikipedia 타임아웃 (5s): {scientific_name}")
-                    except Exception as e:
-                        print(f"⚠️ Wikipedia 오류: {scientific_name} - {e}")
+                    except (asyncio.TimeoutError, Exception):
+                        pass
 
-                    # 최종 결과 조합
-                    # Wikipedia 이미지가 있으면 사용, 없으면 빈 문자열 (프론트엔드에서 이모지 표시)
-                    image_url = wiki_info.get("image_url", "") if wiki_info.get("image_url") else ""
+                    # 공통 이름 결정
+                    common_name = wiki_info.get("common_name")
+                    if not common_name and taxon_info:
+                        common_names = taxon_info.get('common_names', [])
+                        if common_names:
+                            common_name = common_names[0].get('name')
+                    if not common_name:
+                        common_name = scientific_name
 
-                    # 카테고리 정보 가져오기 (species_category_map에서)
-                    species_category = species_category_map.get(scientific_name, "동물")
+                    # 이미지 URL 확인 (Wikipedia 이미지만 사용)
+                    # 이미지가 없거나 지도 이미지인 종은 필터링하여 제외
+                    image_url = wiki_info.get("image_url", "")
 
-                    result = {
-                        "id": v3_data.get('taxonid'),
+                    # 이미지가 없거나 지도 이미지면 결과에서 제외
+                    if not self.is_valid_species_image(image_url):
+                        return None  # 유효한 이미지 없는 종은 필터링
+
+                    species_data = {
+                        "id": sis_id,
                         "scientific_name": scientific_name,
-                        "common_name": wiki_info.get("common_name", scientific_name),
-                        "category": species_category,  # 카테고리 매핑에서 가져옴
+                        "common_name": common_name,
+                        "name": common_name,  # 프론트엔드 호환
+                        "category": detected_category,
+                        "image": image_url,
                         "image_url": image_url,
-                        "description": wiki_info.get("description", f"IUCN Red List Category: {v3_data.get('category', 'Unknown')}"),
+                        "description": wiki_info.get("description", f"{common_name} - IUCN {risk_level}"),
                         "country": country_code,
-                        "risk_level": v3_data.get('category', 'DD')
+                        "risk_level": risk_level
                     }
 
-                    # 종별 캐시 저장
-                    self.species_cache[scientific_name] = {
-                        'data': result,
-                        'timestamp': datetime.now()
-                    }
+                    # ID 캐시에 저장 (상세 조회용)
+                    if sis_id:
+                        self.id_to_species_cache[sis_id] = {
+                            'data': species_data,
+                            'timestamp': datetime.now()
+                        }
 
-                    return result
+                    return species_data
 
-                except asyncio.TimeoutError:
-                    print(f"⏱️ 타임아웃: {scientific_name}")
-                    return None
                 except Exception as e:
-                    print(f"❌ 조회 실패 ({scientific_name}): {e}")
+                    print(f"⚠️ 보강 실패: {e}")
                     return None
 
-            # ========================================
-            # [LOG 3/5 - API Start] asyncio.gather 시작
-            # ========================================
-            print(f"\n[API START] Starting fetching {len(species_list)} species...")
-            fetch_tasks = [fetch_single_species(name) for name in species_list]
+            # === 개선된 샘플링 전략 ===
+            # IUCN API 데이터의 약 10%만 육상 척추동물(동물 카테고리)이므로
+            # 충분한 결과를 얻으려면 많은 샘플이 필요함
+            # 알파벳 범위별로 다양하게 선택하여 MAMMALIA(L~Z), AVES(A~Z) 등 다양한 클래스 포함
+            total_species = len(all_assessments)
 
-            # ⚡ CRITICAL: 전체 병렬 조회에 30초 타임아웃 적용
-            # 개별 종 타임아웃(3초)이 있더라도, 네트워크 문제로 누적 지연 발생 가능
-            # 어떤 상황에서도 30초 이내에 응답을 보장
+            if total_species <= 200:
+                sample_assessments = all_assessments
+            else:
+                sample_assessments = []
+
+                # 전략: 알파벳 범위별 균등 샘플링 (더 많은 샘플)
+                # 포유류는 주로 L, M, P, R, S 등에 집중되어 있음
+                alphabet_ranges = [
+                    (0, 0.12),    # A-B: 0-12%
+                    (0.12, 0.25), # C-E: 12-25%
+                    (0.25, 0.38), # F-I: 25-38%
+                    (0.38, 0.50), # J-M: 38-50% (많은 포유류)
+                    (0.50, 0.62), # N-P: 50-62% (많은 포유류)
+                    (0.62, 0.75), # Q-S: 62-75%
+                    (0.75, 0.88), # T-V: 75-88%
+                    (0.88, 1.0),  # W-Z: 88-100%
+                ]
+
+                # 동물 카테고리가 약 10%이므로 300개 샘플링하면 약 30개 동물 확보
+                samples_per_range = 40  # 각 범위에서 40개씩 = 320개
+
+                for start_pct, end_pct in alphabet_ranges:
+                    start_idx = int(total_species * start_pct)
+                    end_idx = int(total_species * end_pct)
+                    range_size = end_idx - start_idx
+
+                    if range_size > 0:
+                        # 해당 범위에서 균등 샘플링
+                        step = max(1, range_size // samples_per_range)
+                        for i in range(0, min(range_size, samples_per_range * step), step):
+                            if start_idx + i < len(all_assessments):
+                                sample_assessments.append(all_assessments[start_idx + i])
+
+                # 중복 제거
+                seen = set()
+                unique_samples = []
+                for a in sample_assessments:
+                    key = a.get('sis_taxon_id')
+                    if key not in seen:
+                        seen.add(key)
+                        unique_samples.append(a)
+                sample_assessments = unique_samples[:350]  # 최대 350개 샘플링
+
+            print(f"🔍 {len(sample_assessments)}개 종 카테고리 확인 및 보강 시작... (총 {total_species}개 중 범위별 샘플링)")
+
+            # 세마포어로 동시 요청 제한 (API 부하 방지)
+            semaphore = asyncio.Semaphore(20)  # 더 많은 병렬 요청 허용
+
+            async def limited_enrich(assessment):
+                async with semaphore:
+                    return await enrich_and_filter(assessment)
+
+            tasks = [limited_enrich(a) for a in sample_assessments]
             try:
                 results = await asyncio.wait_for(
-                    asyncio.gather(*fetch_tasks, return_exceptions=True),
-                    timeout=30.0
+                    asyncio.gather(*tasks, return_exceptions=True),
+                    timeout=120.0  # 350개 처리를 위해 타임아웃 증가
                 )
             except asyncio.TimeoutError:
-                print(f"⚠️ [TIMEOUT] Global timeout (30s) reached. Returning partial results.")
-                # 타임아웃 발생 시 빈 결과 반환 (무한 대기 방지)
+                print(f"⚠️ 타임아웃 (120s)")
                 results = []
 
-            # ========================================
-            # [LOG 4/5 - API End] asyncio.gather 완료
-            # ========================================
-            print(f"[API END] Fetched {len(results)} results (including None/Exceptions)")
+            # 디버깅: 결과 통계
+            none_count = sum(1 for r in results if r is None)
+            exception_count = sum(1 for r in results if isinstance(r, Exception))
+            success_count = sum(1 for r in results if r is not None and not isinstance(r, Exception))
+            print(f"📊 처리 결과: 성공 {success_count}, 필터링됨 {none_count}, 예외 {exception_count} (총 {len(results)})")
 
-            # 성공한 결과만 필터링 (None과 Exception 제외)
-            species_data_raw = [
-                r for r in results
-                if r is not None and not isinstance(r, Exception)
-            ]
+            # 성공한 결과만 필터링 (카테고리 일치 + 데이터 있음)
+            species_data = [r for r in results if r is not None and not isinstance(r, Exception)]
 
-            # 중복 제거: scientific_name 기준으로 유니크한 데이터만 유지
+            # 중복 제거 (학명 + 이미지 URL 기준)
             seen_names = set()
-            species_data = []
-            for species in species_data_raw:
+            seen_images = set()
+            unique_species = []
+            for species in species_data:
                 name = species.get('scientific_name')
-                if name and name not in seen_names:
+                image_url = species.get('image', '')
+
+                # 학명 중복 제거
+                if name and name in seen_names:
+                    continue
+
+                # 이미지 중복 제거 (같은 이미지가 다른 종에 사용된 경우)
+                if image_url and image_url in seen_images:
+                    continue
+
+                if name:
                     seen_names.add(name)
-                    species_data.append(species)
-                elif name:
-                    print(f"⚠️ 중복 제거: {name}")
+                if image_url:
+                    seen_images.add(image_url)
+                unique_species.append(species)
 
-            success_count = len(species_data)
-            total_count = len(species_list)
-            duplicate_count = len(species_data_raw) - len(species_data)
-            print(f"✅ 성공: {success_count}/{total_count}개 종 (중복 제거: {duplicate_count}개)")
+            print(f"📊 API 데이터 결과: {len(unique_species)}개 종")
 
-            # 국가별 캐시 저장
-            self.country_cache[country_code] = {
-                'data': species_data,
+            # ========================================
+            # 대표 동물 병합 (동물 카테고리 전용)
+            # IUCN /countries/{code} 엔드포인트에서 누락되는
+            # 유명 포유류(판다, 호랑이, 북극곰 등)를 추가
+            # ========================================
+            if category == "동물" or category is None:
+                iconic_animals = await self._fetch_iconic_animals(country_code)
+
+                # 대표 동물을 맨 앞에 추가 (학명 + 이미지 중복 제외)
+                iconic_added = 0
+                for iconic in iconic_animals:
+                    iconic_name = iconic.get('scientific_name')
+                    iconic_image = iconic.get('image', '')
+
+                    # 학명 또는 이미지가 이미 존재하면 스킵
+                    if iconic_name and iconic_name in seen_names:
+                        continue
+                    if iconic_image and iconic_image in seen_images:
+                        continue
+
+                    if iconic_name:
+                        seen_names.add(iconic_name)
+                    if iconic_image:
+                        seen_images.add(iconic_image)
+                    # 대표 동물은 맨 앞에 배치
+                    unique_species.insert(iconic_added, iconic)
+                    iconic_added += 1
+
+                if iconic_added > 0:
+                    print(f"🦁 대표 동물 {iconic_added}종 추가됨 (맨 앞 배치)")
+
+            print(f"✅ 최종 결과: {len(unique_species)}개 종")
+
+            # 캐시 저장
+            self.country_cache[cache_key] = {
+                'data': unique_species,
                 'timestamp': datetime.now()
             }
 
@@ -562,17 +1225,19 @@ class IUCNService:
             # [LOG 5/5 - Return] 최종 반환 데이터
             # ========================================
             print(f"[RETURN] 최종 데이터 반환")
-            print(f"  타입: {type(species_data)}")
-            print(f"  길이: {len(species_data)}")
-            if species_data:
-                print(f"  샘플 키: {list(species_data[0].keys())}")
+            print(f"  타입: {type(unique_species)}")
+            print(f"  길이: {len(unique_species)}")
+            if unique_species:
+                print(f"  샘플 키: {list(unique_species[0].keys())}")
             print(f"{'='*60}\n")
 
-            return species_data
+            return unique_species
 
         except Exception as e:
             print(f"❌ Country Service Error ({country_code}): {e}")
-            print(f"[RETURN] 예외 발생으로 빈 리스트 반환 (type: {type([])}, len: 0)")
+            import traceback
+            traceback.print_exc()
+            print(f"[RETURN] 예외 발생으로 빈 리스트 반환")
             print(f"{'='*60}\n")
             return []
 
@@ -598,84 +1263,216 @@ class IUCNService:
             print(f"{'='*60}")
 
             # ========================================
-            # Step 1: 캐시에서 학명 찾기 (빠른 경로)
+            # Step 0: ID 캐시에서 먼저 확인 (가장 빠른 경로)
+            # ========================================
+            if species_id in self.id_to_species_cache:
+                cache_entry = self.id_to_species_cache[species_id]
+                cache_time = cache_entry.get('timestamp')
+                if cache_time and datetime.now() - cache_time < self.cache_ttl:
+                    cached_species_data = cache_entry.get('data', {})
+                    scientific_name = cached_species_data.get('scientific_name')
+                    print(f"✅ ID 캐시에서 발견: {scientific_name}")
+
+                    # Wikipedia 데이터 추가 조회 (타임아웃 2초)
+                    wiki_info = {}
+                    try:
+                        wiki_info = await asyncio.wait_for(
+                            wikipedia_service.get_species_info(scientific_name),
+                            timeout=2.0
+                        )
+                        print(f"✅ Wikipedia 데이터 획득")
+                    except (asyncio.TimeoutError, Exception) as e:
+                        print(f"⏱️ Wikipedia 조회 실패: {e}")
+
+                    # 캐시된 데이터를 기반으로 상세 정보 구성
+                    image_url = wiki_info.get("image_url") or cached_species_data.get("image_url", "")
+                    common_name = wiki_info.get("common_name") or cached_species_data.get("common_name", scientific_name)
+
+                    detail_response = {
+                        "id": species_id,
+                        "name": common_name,
+                        "scientific_name": scientific_name,
+                        "common_name": common_name,
+                        "category": cached_species_data.get("category", "동물"),
+                        "kingdom": "Animalia",
+                        "phylum": "Chordata",
+                        "class": "Unknown",
+                        "image": image_url,
+                        "image_url": image_url,
+                        "description": wiki_info.get("description") or cached_species_data.get("description", "No description available"),
+                        "status": cached_species_data.get("risk_level", "DD"),
+                        "risk_level": cached_species_data.get("risk_level", "DD"),
+                        "population": "Unknown",
+                        "habitat": "Various habitats",
+                        "threats": [],
+                        "country": cached_species_data.get("country", "Global"),
+                        "color": "green",
+                    }
+
+                    print(f"✅ ID 캐시 기반 상세 정보 구성 완료")
+                    print(f"[RETURN] Detail data (from ID cache)")
+                    print(f"{'='*60}\n")
+                    return detail_response
+
+            # ========================================
+            # Step 1: taxon 캐시에서 학명 찾기 (느린 경로)
+            # species_cache는 {taxon_scientific_name: {data: {...}, timestamp: ...}} 형태
             # ========================================
             scientific_name = None
+            cached_species_data = None
+
             for cached_name, cache_entry in self.species_cache.items():
                 cached_data = cache_entry.get('data', {})
-                if cached_data.get('id') == species_id:
-                    scientific_name = cached_name
-                    print(f"✅ 캐시에서 학명 발견: {scientific_name}")
+                # taxon 데이터에서 sis_id 확인
+                if cached_data.get('sis_id') == species_id:
+                    scientific_name = cached_data.get('scientific_name')
+                    cached_species_data = cached_data
+                    print(f"✅ taxon 캐시에서 학명 발견: {scientific_name}")
                     break
 
             # ========================================
-            # Step 2: 캐시 미스 시 v4 API로 학명 조회
+            # Step 2: 캐시 히트 시 캐시 데이터를 기반으로 상세 정보 반환
+            # (v4 API 재호출 없이 빠르게 응답)
+            # ========================================
+            if cached_species_data:
+                print(f"🚀 캐시 데이터 사용하여 빠른 응답")
+
+                # Wikipedia 데이터 조회 (타임아웃 2초로 단축)
+                wiki_info = {}
+                try:
+                    wiki_info = await asyncio.wait_for(
+                        wikipedia_service.get_species_info(scientific_name),
+                        timeout=2.0
+                    )
+                    print(f"✅ Wikipedia 데이터 획득")
+                except asyncio.TimeoutError:
+                    print(f"⏱️ Wikipedia 타임아웃 (2s)")
+                except Exception as e:
+                    print(f"⚠️ Wikipedia 오류: {e}")
+
+                # 캐시된 데이터를 기반으로 상세 정보 구성
+                image_url = wiki_info.get("image_url") or cached_species_data.get("image_url", "")
+                common_name = wiki_info.get("common_name") or cached_species_data.get("common_name", scientific_name)
+
+                detail_response = {
+                    "id": species_id,
+                    "name": common_name,
+                    "scientific_name": scientific_name,
+                    "common_name": common_name,
+                    "category": cached_species_data.get("category", "동물"),
+                    "kingdom": "Animalia",
+                    "phylum": "Chordata",
+                    "class": "Unknown",
+                    "image": image_url,
+                    "image_url": image_url,
+                    "description": wiki_info.get("description") or cached_species_data.get("description", "No description available"),
+                    "status": cached_species_data.get("risk_level", "DD"),
+                    "risk_level": cached_species_data.get("risk_level", "DD"),
+                    "population": "Unknown",
+                    "habitat": "Various habitats",
+                    "threats": [],
+                    "country": cached_species_data.get("country", "Global"),
+                    "color": "green",
+                }
+
+                print(f"✅ 캐시 기반 상세 정보 구성 완료")
+                print(f"[RETURN] Detail data (from cache)")
+                print(f"{'='*60}\n")
+                return detail_response
+
+            # ========================================
+            # Step 3: 캐시 미스 시 v4 API로 학명 조회
             # (주의: v4는 ID 기반 조회가 제한적, 실패 시 fallback)
             # ========================================
-            if not scientific_name:
-                print(f"⚠️ 캐시에 없음. ID {species_id}로 직접 조회 시도...")
+            print(f"⚠️ 캐시에 없음. ID {species_id}로 직접 조회 시도...")
 
-                # v4 API: /taxa/id/{sis_id} 엔드포인트 시도
-                try:
-                    url = f"{self.base_url}/taxa/id/{species_id}"
-                    print(f"📡 Trying v4 endpoint: {url}")
+            # v4 API: /taxa/id/{sis_id} 엔드포인트 시도
+            try:
+                url = f"{self.base_url}/taxa/id/{species_id}"
+                print(f"📡 Trying v4 endpoint: {url}")
 
-                    response = await asyncio.wait_for(
-                        self._make_request(url),
-                        timeout=3.0
-                    )
+                response = await asyncio.wait_for(
+                    self._make_request(url),
+                    timeout=3.0
+                )
 
-                    if response.status_code == 200:
-                        v4_data = response.json()
-                        if v4_data and 'taxon' in v4_data:
-                            scientific_name = v4_data['taxon'].get('scientific_name')
-                            print(f"✅ v4 API로 학명 획득: {scientific_name}")
-                except Exception as e:
-                    print(f"⚠️ v4 ID 조회 실패: {e}")
+                if response.status_code == 200:
+                    v4_data = response.json()
+                    if v4_data and 'taxon' in v4_data:
+                        scientific_name = v4_data['taxon'].get('scientific_name')
+                        print(f"✅ v4 API로 학명 획득: {scientific_name}")
+            except asyncio.TimeoutError:
+                print(f"⏱️ v4 API 타임아웃 (3s)")
+            except Exception as e:
+                print(f"⚠️ v4 ID 조회 실패: {e}")
 
             # ========================================
-            # Step 3: 학명 없으면 즉시 None 반환 (무한 대기 방지)
+            # Step 4: 학명 없으면 에러 응답 반환 (None 대신)
             # ========================================
             if not scientific_name:
                 print(f"❌ 학명을 찾을 수 없음. ID: {species_id}")
-                print(f"[RETURN] None")
+                print(f"[RETURN] Error response")
                 print(f"{'='*60}\n")
-                return None
+                # None 대신 에러 정보를 담은 딕셔너리 반환
+                return {
+                    "id": species_id,
+                    "name": f"Species #{species_id}",
+                    "scientific_name": "Unknown",
+                    "common_name": f"Species #{species_id}",
+                    "category": "동물",
+                    "image": "",
+                    "image_url": "",
+                    "description": "상세 정보를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.",
+                    "status": "DD",
+                    "risk_level": "DD",
+                    "population": "Unknown",
+                    "habitat": "Unknown",
+                    "threats": [],
+                    "country": "Unknown",
+                    "color": "green",
+                    "error": True,
+                    "error_message": "학명을 찾을 수 없습니다"
+                }
 
             # ========================================
-            # Step 4: 학명으로 v4 데이터 조회
+            # Step 5: 학명으로 v4 데이터 조회
             # ========================================
             print(f"🔍 학명으로 상세 조회: {scientific_name}")
 
-            v4_response = await asyncio.wait_for(
-                self.search_by_scientific_name(scientific_name),
-                timeout=5.0
-            )
+            v3_data = None
+            try:
+                v4_response = await asyncio.wait_for(
+                    self.search_by_scientific_name(scientific_name),
+                    timeout=5.0
+                )
 
-            # v4 -> v3 어댑터 적용
-            if not v4_response:
-                print(f"⚠️ v4 API 응답 없음")
-                v3_data = None
-            else:
-                v3_data = self._v4_to_v3_adapter(v4_response, scientific_name)
+                # v4 -> v3 어댑터 적용
+                if v4_response:
+                    v3_data = self._v4_to_v3_adapter(v4_response, scientific_name)
+                else:
+                    print(f"⚠️ v4 API 응답 없음")
+            except asyncio.TimeoutError:
+                print(f"⏱️ v4 학명 조회 타임아웃 (5s)")
+            except Exception as e:
+                print(f"⚠️ v4 학명 조회 실패: {e}")
 
             # ========================================
-            # Step 5: Wikipedia 데이터 조회 (타임아웃 5초)
+            # Step 6: Wikipedia 데이터 조회 (타임아웃 2초)
             # ========================================
             wiki_info = {}
             try:
                 wiki_info = await asyncio.wait_for(
                     wikipedia_service.get_species_info(scientific_name),
-                    timeout=5.0
+                    timeout=2.0
                 )
                 print(f"✅ Wikipedia 데이터 획득")
             except asyncio.TimeoutError:
-                print(f"⏱️ Wikipedia 타임아웃 (5s)")
+                print(f"⏱️ Wikipedia 타임아웃 (2s)")
             except Exception as e:
                 print(f"⚠️ Wikipedia 오류: {e}")
 
             # ========================================
-            # Step 6: 프론트엔드 호환 응답 구성 (모든 필드 보장)
+            # Step 7: 프론트엔드 호환 응답 구성 (모든 필드 보장)
             # ========================================
             # Wikipedia 이미지가 있으면 사용, 없으면 빈 문자열 (프론트엔드에서 이모지 표시)
             image_url = wiki_info.get("image_url", "") if wiki_info.get("image_url") else ""
@@ -724,16 +1521,54 @@ class IUCNService:
 
         except asyncio.TimeoutError:
             print(f"⏱️ 전체 타임아웃 발생")
-            print(f"[RETURN] None")
+            print(f"[RETURN] Error response")
             print(f"{'='*60}\n")
-            return None
+            # 타임아웃 시에도 에러 정보를 담은 응답 반환
+            return {
+                "id": species_id,
+                "name": f"Species #{species_id}",
+                "scientific_name": "Unknown",
+                "common_name": f"Species #{species_id}",
+                "category": "동물",
+                "image": "",
+                "image_url": "",
+                "description": "요청 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.",
+                "status": "DD",
+                "risk_level": "DD",
+                "population": "Unknown",
+                "habitat": "Unknown",
+                "threats": [],
+                "country": "Unknown",
+                "color": "green",
+                "error": True,
+                "error_message": "Timeout"
+            }
         except Exception as e:
             print(f"❌ Species Detail Error: {e}")
             import traceback
             traceback.print_exc()
-            print(f"[RETURN] None")
+            print(f"[RETURN] Error response")
             print(f"{'='*60}\n")
-            return None
+            # 예외 발생 시에도 에러 정보를 담은 응답 반환
+            return {
+                "id": species_id,
+                "name": f"Species #{species_id}",
+                "scientific_name": "Unknown",
+                "common_name": f"Species #{species_id}",
+                "category": "동물",
+                "image": "",
+                "image_url": "",
+                "description": f"오류가 발생했습니다: {str(e)}",
+                "status": "DD",
+                "risk_level": "DD",
+                "population": "Unknown",
+                "habitat": "Unknown",
+                "threats": [],
+                "country": "Unknown",
+                "color": "green",
+                "error": True,
+                "error_message": str(e)
+            }
 
     async def search_by_scientific_name(self, scientific_name: str) -> Optional[Dict]:
         """

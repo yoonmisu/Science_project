@@ -169,7 +169,10 @@ const countryNameToISO = {
   'Burundi': 'bi', 'Dem. Rep. Congo': 'cd', 'Democratic Republic of the Congo': 'cd',
   'Congo': 'cg', 'Republic of the Congo': 'cg', 'Somaliland': 'so',
   'Falkland Islands': 'fk', 'Falkland Is.': 'fk', 'Greenland': 'gl',
-  'Antarctica': 'aq', 'French Southern and Antarctic Lands': 'tf', 'Fr. S. Antarctic Lands': 'tf'
+  'Antarctica': 'aq', 'French Southern and Antarctic Lands': 'tf', 'Fr. S. Antarctic Lands': 'tf',
+  // 추가 매핑 (GeoJSON에서 누락된 것들)
+  'Dominican Rep.': 'do', 'Honduras': 'hn', 'United Arab Emirates': 'ae',
+  'Solomon Is.': 'sb', 'N. Cyprus': 'cy'
 };
 
 const InteractiveDottedMap = ({
@@ -181,6 +184,7 @@ const InteractiveDottedMap = ({
   highlightColor = '#374151',   // 진한 회색 (gray-700)
   category = null,              // 카테고리 (동물, 식물, 곤충, 해양생물)
   filteredCountries = null,     // 필터링된 국가 목록 (null = 전체, array = 특정 국가들만)
+  dataVersion = 0,              // 데이터 버전 (변경 시 재렌더링 트리거, 리마운트 없음)
   onCountryClick
 }) => {
   const svgRef = useRef(null);
@@ -189,6 +193,11 @@ const InteractiveDottedMap = ({
   const [isLoading, setIsLoading] = useState(true);
   const [dots, setDots] = useState([]);
   const [projection, setProjection] = useState(null); // 좌표 변환용
+
+  // 디버그: dataVersion 변경 시 로그
+  useEffect(() => {
+    console.log(`🗺️ [InteractiveDottedMap] 렌더링 - category: ${category}, dataVersion: ${dataVersion}, dots: ${dots.length}개`);
+  }, [category, dataVersion, dots.length]);
 
   // 색상 ID 생성 함수 (소수 기반 분산)
   const idToColor = (id) => {
@@ -447,14 +456,31 @@ const InteractiveDottedMap = ({
             filteredCountries.length > 0 &&
             !filteredCountries.includes(countryCodeUpper);
 
+          // 색상 데이터 가져오기 (새 형식: { color, hasData, loading? })
+          const colorData = category && countryCodeUpper
+            ? getColorIntensity(category, countryCodeUpper)
+            : { color: dotColor, hasData: true };
+
+          // 디버그: 첫 5개 한국 점에 대해서만 로그 (한 번만)
+          if (i < 5 && countryCodeUpper === 'KR' && dataVersion > 0) {
+            console.log(`🔴 [dot ${i}] KR: colorData=`, colorData, `baseDotColor will be:`, colorData.hasData ? colorData.color : '#d1d5db');
+          }
+
+          // 종이 0개인 국가는 색상 없음 (기본 회색)
+          // loading 상태면 hasData는 true지만 실제 데이터가 로드되기 전
+          const hasSpecies = colorData.hasData;
+          const isLoading = colorData.loading || false;
+
           // 필터링된 국가는 회색으로 표시
           let baseDotColor;
           if (isFiltered) {
             baseDotColor = '#e5e7eb'; // 매우 연한 회색 (보이지만 강조되지 않음)
+          } else if (!hasSpecies) {
+            baseDotColor = '#d1d5db'; // 종이 0개인 국가: 중간 회색 (gray-300)
+          } else if (isLoading) {
+            baseDotColor = colorData.color; // 로딩 중: 중간 색상 (데이터 로드 전 기본 표시)
           } else {
-            baseDotColor = category && countryCodeUpper
-              ? getColorIntensity(category, countryCodeUpper)
-              : dotColor;
+            baseDotColor = colorData.color; // 실제 데이터 기반 색상
           }
 
           return (
@@ -500,7 +526,7 @@ const InteractiveDottedMap = ({
                 fill={hoveredCountry === dot.countryCode ? highlightColor : baseDotColor}
                 className={`dot-${dot.countryClass}`}
                 style={{
-                  opacity: isFiltered ? 0.3 : 1,
+                  opacity: isFiltered ? 0.3 : (hasSpecies ? 1 : 0.5),
                   pointerEvents: 'none'
                 }}
               />
