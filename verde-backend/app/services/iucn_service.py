@@ -251,7 +251,8 @@ class IUCNService:
                 # Common name 확인
                 if hasattr(country, 'common_name') and country.common_name.lower() == country_lower:
                     return country.alpha_2
-        except Exception as e:
+        except Exception:
+            pass
         # 6. 모든 방법 실패 시 None 반환
         return None
 
@@ -1120,7 +1121,6 @@ class IUCNService:
                     unique_species.insert(iconic_added, iconic)
                     iconic_added += 1
 
-                if iconic_added > 0:
             # 캐시 저장 (species_name 필터 없을 때만)
             if not species_name:
                 self.country_cache[cache_key] = {
@@ -1159,7 +1159,8 @@ class IUCNService:
                                     wikipedia_service.get_species_info(scientific_name_from_api),
                                     timeout=2.0
                                 )
-                            except (asyncio.TimeoutError, Exception) as e:
+                            except (asyncio.TimeoutError, Exception):
+                                pass
                             # 공통 이름 결정
                             common_name = wiki_info.get("common_name")
                             if not common_name:
@@ -1212,14 +1213,13 @@ class IUCNService:
                             }
 
                             filtered_species = [fallback_species]
-                        else:
-                    except Exception as e:
+                    except Exception:
+                        pass
                 unique_species = filtered_species
 
             # ========================================
             # [LOG 5/5 - Return] 최종 반환 데이터
             # ========================================
-            if unique_species:
             return unique_species
 
         except Exception as e:

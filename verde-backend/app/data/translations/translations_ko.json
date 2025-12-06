@@ -1,7 +1,7 @@
 {
   "language": "ko",
-  "updated_at": "2025-12-06T21:47:13.855304",
-  "count": 5,
+  "updated_at": "2025-12-07T01:29:19.248748",
+  "count": 8,
   "translations": {
     "bc1b94ff1e0988c7f3f23a733513929b": {
       "original_text": "The Asian black bear, also known as the Asiatic black bear, moon bear and white-chested bear, is a m...",
@@ -27,6 +27,21 @@
       "original_text": "The Eurasian otter, also known as the European otter, Eurasian river otter, European river otter, co...",
       "translated_text": "유라시아수달은 유럽수달, 유라시아강수달, 유럽강수달, 일반수달, 구세계수달 등으로도 알려져 있으며, 유라시아와 마그레브에 서식하는 반수생 포유류입니다. 족제비과(Mustelidae)의 수달아과(Lutrinae)에 속하며, 가장 널리 분포하는 종으로 유럽의 수로와 해안, 아시아 여러 지역, 그리고 북아프리카 일부 지역에서 발견됩니다. 유라시아수달은 주로 어류를 주식으로 하며, 영역 의식이 강합니다. 일부 지역에서는 멸종 위기에 처해 있지만, 다른 지역에서는 회복되고 있습니다.",
       "cached_at": "2025-12-06T21:47:13.855286"
+    },
+    "454c9843110686bf6f67ce5115b66617": {
+      "original_text": "Tiger",
+      "translated_text": "호랑이",
+      "cached_at": "2025-12-07T01:29:09.545647"
+    },
+    "dead7e802163f58b01632256d92c0ba9": {
+      "original_text": "The tiger is a large cat and a member of the genus Panthera native to Asia. It has a powerful, muscu...",
+      "translated_text": "호랑이는 아시아에 서식하는 대형 고양잇과 동물이며, 표범속(Panthera)에 속합니다. 강인하고 근육질의 몸에 큰 머리와 발, 긴 꼬리, 그리고 검은색 세로줄무늬가 있는 주황색 털을 가지고 있습니다. 전통적으로 9개의 아종으로 분류되지만, 일부에서는 아시아 본토 호랑이와 순다 열도의 섬 호랑이, 이렇게 두 아종만 인정하기도 합니다.",
+      "cached_at": "2025-12-07T01:29:09.549333"
+    },
+    "07af046b5bac3a1dcc4aeea800b6b91e": {
+      "original_text": "The giant panda, also known as the panda bear or simply panda, is a bear species endemic to China. I...",
+      "translated_text": "자이언트 팬더는 팬더 베어 또는 간단히 팬더라고도 불리며, 중국 고유의 곰 종입니다. 눈, 귀, 다리, 어깨 주변에 검은색 반점이 있는 흰색 털이 특징입니다. 몸은 둥글며, 성체의 체중은 100~115kg이고 길이는 일반적으로 1.2~1.9m입니다. 성적 이형성이 있으며, 수컷은 일반적으로 암컷보다 10~20% 더 큽니다. 앞발에 엄지손가락이 보이는데, 이는 먹이를 위해 대나무를 제자리에 고정하는 데 도움이 됩니다. 큰 어금니와 확장된 측두골이 있어 식이 요구 사항을 충족합니다. 전분을 소화할 수 있으며 주로 초식성이며 거의 전적으로 대나무와 죽순으로 구성된 식단을 섭취합니다.",
+      "cached_at": "2025-12-07T01:29:19.248696"
     }
   }
 }
