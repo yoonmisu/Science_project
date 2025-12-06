@@ -7,6 +7,19 @@ import { fetchSpeciesByCountry, searchSpeciesByName, fetchTrendingSearches, fetc
 import { SpeciesCardSkeletonGrid } from '../components/SpeciesCardSkeleton';
 import ErrorMessage from '../components/ErrorMessage';
 
+// 브라우저 언어 감지 헬퍼 함수
+const getBrowserLanguage = () => {
+  // navigator.language에서 언어 코드 추출 (예: 'ko-KR' -> 'ko', 'en-US' -> 'en')
+  const browserLang = navigator.language || navigator.userLanguage || 'en';
+  const langCode = browserLang.split('-')[0].toLowerCase();
+
+  // 지원하는 언어 목록 (백엔드 wikipedia_service.py의 SUPPORTED_LANGUAGES와 동일)
+  const supportedLanguages = ['ko', 'en', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'it', 'vi', 'th', 'id'];
+
+  // 지원하는 언어면 해당 코드 반환, 아니면 영어로 폴백
+  return supportedLanguages.includes(langCode) ? langCode : 'en';
+};
+
 const HomePage = () => {
   console.log('🏠 HomePage 컴포넌트 초기화 중...');
 
@@ -36,6 +49,12 @@ const HomePage = () => {
   const [speciesDetail, setSpeciesDetail] = useState(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
+
+  // 멸종위기 종류 보기 상태
+  const [endangeredData, setEndangeredData] = useState(null); // 카테고리별 그룹화된 데이터
+  const [isEndangeredLoading, setIsEndangeredLoading] = useState(false);
+  const [endangeredError, setEndangeredError] = useState(null);
+  const [endangeredFilter, setEndangeredFilter] = useState(null); // null = 전체, 또는 카테고리명
 
   // 지도 시각화 데이터 로드 상태 (지도 재렌더링 트리거용)
   const [mapDataVersion, setMapDataVersion] = useState(0);
@@ -199,8 +218,60 @@ const HomePage = () => {
     setSelectedLocation(null);
   };
 
-  const goToEndangeredView = () => {
+  const goToEndangeredView = async () => {
     setModalView('endangered');
+    setIsEndangeredLoading(true);
+    setEndangeredError(null);
+    setEndangeredData(null);
+    setEndangeredFilter(null); // 필터 초기화
+
+    const categories = ['동물', '식물', '곤충', '해양생물'];
+    const categoryIcons = {
+      '동물': '🦌',
+      '식물': '🌿',
+      '곤충': '🐝',
+      '해양생물': '🐠'
+    };
+
+    try {
+      console.log('📊 멸종위기 종류 데이터 로드 시작:', selectedLocation.countryCode);
+
+      // 모든 카테고리에 대해 병렬로 데이터 로드
+      const results = await Promise.all(
+        categories.map(async (cat) => {
+          try {
+            const response = await fetchSpeciesByCountry(
+              selectedLocation.countryCode,
+              cat,
+              1,
+              30 // 각 카테고리당 최대 30개
+            );
+            return {
+              category: cat,
+              icon: categoryIcons[cat],
+              species: response.data || [],
+              total: response.total || 0
+            };
+          } catch (err) {
+            console.warn(`⚠️ ${cat} 카테고리 로드 실패:`, err);
+            return {
+              category: cat,
+              icon: categoryIcons[cat],
+              species: [],
+              total: 0
+            };
+          }
+        })
+      );
+
+      console.log('✅ 멸종위기 종류 데이터 로드 완료:', results);
+      setEndangeredData(results);
+    } catch (err) {
+      console.error('❌ 멸종위기 종류 데이터 로드 실패:', err);
+      setEndangeredError('데이터를 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setIsEndangeredLoading(false);
+    }
   };
 
   // 에러 재시도 핸들러
@@ -218,8 +289,10 @@ const HomePage = () => {
     setSpeciesDetail(null);
 
     try {
-      console.log(`📡 상세 정보 API 호출: ID ${species.id}`);
-      const detail = await fetchSpeciesDetail(species.id);
+      // 브라우저 언어 감지하여 API에 전달
+      const userLang = getBrowserLanguage();
+      console.log(`📡 상세 정보 API 호출: ID ${species.id} (언어: ${userLang})`);
+      const detail = await fetchSpeciesDetail(species.id, userLang);
       console.log('✅ 상세 정보 수신:', detail);
 
       // 백엔드에서 에러 응답을 반환한 경우 처리
@@ -976,43 +1049,325 @@ const HomePage = () => {
             )}
             {modalView === 'endangered' && (
               <div style={{
-                padding: '40px',
-                textAlign: 'center',
                 minHeight: '300px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
                 backgroundColor: '#fefcfa',
-                borderRadius: '15px'
+                borderRadius: '15px',
+                padding: '20px'
               }}>
-                <h3 style={{
-                  color: '#747F60',
-                  fontSize: '20px',
-                  marginBottom: '15px'
+                {/* 헤더 */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '20px'
                 }}>
-                  {selectedLocation.name}의 멸종 위기종 목록
-                </h3>
-                <p style={{ color: '#666', marginBottom: '25px' }}>
-                  이 섹션에서는 해당 국가의 멸종 위기종에 대한 상세 정보를 제공할 예정입니다.
-                </p>
-                <button
-                  onClick={() => setModalView('species')}
-                  style={{
-                    padding: '10px 20px',
-                    borderRadius: '20px',
-                    border: '1px solid #ccc',
-                    backgroundColor: '#fff',
-                    cursor: 'pointer',
-                    fontSize: '15px',
-                    fontWeight: '500',
-                    transition: 'background 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#f0f0f0'}
-                  onMouseLeave={(e) => e.target.style.backgroundColor = '#fff'}
-                >
-                  생물 다양성 목록으로 돌아가기
-                </button>
+                  <h3 style={{
+                    color: '#374151',
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    margin: 0
+                  }}>
+                    {selectedLocation.name}의 멸종위기종 카테고리별 현황
+                  </h3>
+                  <button
+                    onClick={() => setModalView('species')}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '20px',
+                      border: '1px solid #d1d5db',
+                      backgroundColor: '#fff',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '500',
+                      transition: 'background 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = '#fff'}
+                  >
+                    목록으로 돌아가기
+                  </button>
+                </div>
+
+                {/* 로딩 상태 */}
+                {isEndangeredLoading && (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '60px 20px'
+                  }}>
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      border: '3px solid #e5e7eb',
+                      borderTop: '3px solid #10b981',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }} />
+                    <p style={{ marginTop: '16px', color: '#6b7280' }}>카테고리별 데이터 로딩 중...</p>
+                    <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+                  </div>
+                )}
+
+                {/* 에러 상태 */}
+                {endangeredError && (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '40px 20px',
+                    color: '#ef4444'
+                  }}>
+                    <p>{endangeredError}</p>
+                    <button
+                      onClick={goToEndangeredView}
+                      style={{
+                        marginTop: '12px',
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        backgroundColor: '#ef4444',
+                        color: '#fff',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      다시 시도
+                    </button>
+                  </div>
+                )}
+
+                {/* 카테고리별 그룹화된 리스트 - 테이블 형식 */}
+                {!isEndangeredLoading && !endangeredError && endangeredData && (
+                  <>
+                    {/* 전체 통계 요약 - 상단 (클릭하여 필터링) - 스크롤 영역 밖 */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(4, 1fr)',
+                      gap: '12px',
+                      marginBottom: '16px',
+                      padding: '4px'
+                    }}>
+                      {endangeredData.map((categoryData) => (
+                        <div
+                          key={categoryData.category}
+                          onClick={() => setEndangeredFilter(
+                            endangeredFilter === categoryData.category ? null : categoryData.category
+                          )}
+                          style={{
+                            padding: '16px',
+                            borderRadius: '12px',
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            border: endangeredFilter === categoryData.category ? '2px solid #3b82f6' : '2px solid transparent',
+                            backgroundColor: categoryData.category === '동물' ? '#dcfce7' :
+                              categoryData.category === '식물' ? '#d1fae5' :
+                                categoryData.category === '곤충' ? '#fef3c7' : '#dbeafe',
+                            transform: endangeredFilter === categoryData.category ? 'scale(1.02)' : 'scale(1)',
+                            boxShadow: endangeredFilter === categoryData.category ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none'
+                          }}
+                        >
+                          <div style={{ fontSize: '28px', marginBottom: '4px' }}>{categoryData.icon}</div>
+                          <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '2px' }}>{categoryData.category}</div>
+                          <div style={{ fontSize: '20px', fontWeight: '700', color: '#374151' }}>{categoryData.species.length}종</div>
+                          {endangeredFilter === categoryData.category && (
+                            <div style={{ fontSize: '10px', color: '#3b82f6', marginTop: '4px' }}>필터 적용중</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 테이블 영역 - 스크롤 가능 */}
+                    <div style={{
+                      maxHeight: '280px',
+                      overflowY: 'auto'
+                    }}>
+                    {/* 테이블 헤더 */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '80px 2fr 1fr 80px 60px',
+                      gap: '8px',
+                      padding: '12px 16px',
+                      backgroundColor: '#f3f4f6',
+                      borderRadius: '8px 8px 0 0',
+                      fontWeight: '600',
+                      fontSize: '13px',
+                      color: '#6b7280'
+                    }}>
+                      <div>카테고리</div>
+                      <div>종 이름</div>
+                      <div>학명</div>
+                      <div style={{ textAlign: 'center' }}>위험등급</div>
+                      <div></div>
+                    </div>
+
+                    {/* 테이블 바디 */}
+                    <div style={{
+                      backgroundColor: '#fff',
+                      border: '1px solid #e5e7eb',
+                      borderTop: 'none',
+                      borderRadius: '0 0 8px 8px'
+                    }}>
+                      {endangeredData
+                        .filter((categoryData) => !endangeredFilter || categoryData.category === endangeredFilter)
+                        .flatMap((categoryData) =>
+                        categoryData.species.map((species, idx) => (
+                          <div
+                            key={`${categoryData.category}-${species.id || idx}`}
+                            onClick={() => handleSpeciesClick(species)}
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: '80px 2fr 1fr 80px 60px',
+                              gap: '8px',
+                              padding: '12px 16px',
+                              alignItems: 'center',
+                              cursor: 'pointer',
+                              borderBottom: '1px solid #f3f4f6',
+                              transition: 'background 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                          >
+                            {/* 카테고리 */}
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}>
+                              <span style={{ fontSize: '16px' }}>{categoryData.icon}</span>
+                              <span style={{
+                                fontSize: '11px',
+                                color: '#6b7280',
+                                display: 'none'
+                              }}>
+                                {categoryData.category}
+                              </span>
+                            </div>
+
+                            {/* 종 이름 + 이미지 */}
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '10px'
+                            }}>
+                              <div style={{
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '6px',
+                                overflow: 'hidden',
+                                flexShrink: 0,
+                                backgroundColor: '#f3f4f6',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}>
+                                {species.image && species.image.startsWith('http') ? (
+                                  <img
+                                    src={species.image}
+                                    alt={species.name}
+                                    style={{
+                                      width: '100%',
+                                      height: '100%',
+                                      objectFit: 'cover'
+                                    }}
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                      e.target.parentElement.innerHTML = '<span style="font-size: 14px;">🌱</span>';
+                                    }}
+                                  />
+                                ) : (
+                                  <span style={{ fontSize: '14px' }}>{species.image || '🌱'}</span>
+                                )}
+                              </div>
+                              <span style={{
+                                fontSize: '14px',
+                                fontWeight: '500',
+                                color: '#1f2937',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}>
+                                {species.name}
+                              </span>
+                            </div>
+
+                            {/* 학명 */}
+                            <div style={{
+                              fontSize: '13px',
+                              color: '#9ca3af',
+                              fontStyle: 'italic',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}>
+                              {species.scientificName}
+                            </div>
+
+                            {/* 위험등급 */}
+                            <div style={{ textAlign: 'center' }}>
+                              {species.riskLevel ? (
+                                <span style={{
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  padding: '4px 10px',
+                                  borderRadius: '4px',
+                                  backgroundColor:
+                                    species.riskLevel === 'CR' ? '#fecaca' :
+                                      species.riskLevel === 'EN' ? '#fed7aa' :
+                                        species.riskLevel === 'VU' ? '#fef08a' :
+                                          species.riskLevel === 'NT' ? '#bbf7d0' : '#e5e7eb',
+                                  color:
+                                    species.riskLevel === 'CR' ? '#991b1b' :
+                                      species.riskLevel === 'EN' ? '#9a3412' :
+                                        species.riskLevel === 'VU' ? '#854d0e' :
+                                          species.riskLevel === 'NT' ? '#166534' : '#374151'
+                                }}>
+                                  {species.riskLevel}
+                                </span>
+                              ) : (
+                                <span style={{ color: '#d1d5db' }}>-</span>
+                              )}
+                            </div>
+
+                            {/* 화살표 */}
+                            <div style={{ textAlign: 'center' }}>
+                              <ChevronRight style={{ width: '16px', height: '16px', color: '#9ca3af' }} />
+                            </div>
+                          </div>
+                        ))
+                      )}
+
+                      {/* 데이터 없음 */}
+                      {endangeredData.every(cat => cat.species.length === 0) && (
+                        <div style={{
+                          padding: '40px',
+                          textAlign: 'center',
+                          color: '#9ca3af'
+                        }}>
+                          등록된 멸종위기종 데이터가 없습니다
+                        </div>
+                      )}
+                    </div>
+                    </div>
+
+                    {/* 총계 */}
+                    <div style={{
+                      marginTop: '16px',
+                      padding: '14px',
+                      backgroundColor: '#f9fafb',
+                      borderRadius: '8px',
+                      textAlign: 'center'
+                    }}>
+                      <span style={{ color: '#6b7280', fontSize: '14px' }}>
+                        총 <strong style={{ color: '#374151', fontSize: '16px' }}>
+                          {endangeredData.reduce((sum, cat) => sum + cat.species.length, 0)}
+                        </strong>종의 멸종위기종이 표시됩니다
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 

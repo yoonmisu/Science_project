@@ -1,4 +1,5 @@
 from app.services.wikipedia_service import wikipedia_service
+from app.services.translation_service import translation_service
 import asyncio
 import cloudscraper
 import pycountry
@@ -1343,7 +1344,7 @@ class IUCNService:
             print(f"{'='*60}\n")
             return []
 
-    async def get_species_detail(self, species_id: int) -> Optional[Dict[str, Any]]:
+    async def get_species_detail(self, species_id: int, lang: str = "en") -> Optional[Dict[str, Any]]:
         """
         특정 종의 상세 정보를 IUCN v4 API와 Wikipedia에서 조회합니다.
 
@@ -1351,9 +1352,11 @@ class IUCNService:
         - v4에는 ID 기반 직접 조회가 제한적이므로 캐시 또는 학명 기반 재조회 사용
         - Wikipedia 통합 (2초 타임아웃)
         - 프론트엔드 호환 완벽 보장
+        - 다국어 지원: 요청된 언어의 Wikipedia에서 정보 조회
 
         Args:
             species_id: IUCN sis_id (v4 기준)
+            lang: 언어 코드 (ko=한국어, en=영어, ja=일본어, zh=중국어 등)
 
         Returns:
             종 상세 정보 딕셔너리 (모든 필드 보장) 또는 None
@@ -1361,7 +1364,7 @@ class IUCNService:
         try:
             print(f"\n{'='*60}")
             print(f"[DETAIL] get_species_detail 시작")
-            print(f"  Species ID: {species_id}")
+            print(f"  Species ID: {species_id}, 언어: {lang}")
             print(f"{'='*60}")
 
             # ========================================
@@ -1375,20 +1378,21 @@ class IUCNService:
                     scientific_name = cached_species_data.get('scientific_name')
                     print(f"✅ ID 캐시에서 발견: {scientific_name}")
 
-                    # Wikipedia 데이터 추가 조회 (타임아웃 2초)
+                    # Wikipedia 데이터 조회 (항상 영어로 가져옴 - 가장 완전한 정보)
                     wiki_info = {}
                     try:
                         wiki_info = await asyncio.wait_for(
-                            wikipedia_service.get_species_info(scientific_name),
+                            wikipedia_service.get_species_info(scientific_name, lang="en"),
                             timeout=2.0
                         )
-                        print(f"✅ Wikipedia 데이터 획득")
+                        print(f"✅ Wikipedia 데이터 획득 (영어)")
                     except (asyncio.TimeoutError, Exception) as e:
                         print(f"⏱️ Wikipedia 조회 실패: {e}")
 
                     # 캐시된 데이터를 기반으로 상세 정보 구성
                     image_url = wiki_info.get("image_url") or cached_species_data.get("image_url", "")
                     common_name = wiki_info.get("common_name") or cached_species_data.get("common_name", scientific_name)
+                    description = wiki_info.get("description") or cached_species_data.get("description", "No description available")
 
                     detail_response = {
                         "id": species_id,
@@ -1401,7 +1405,7 @@ class IUCNService:
                         "class": "Unknown",
                         "image": image_url,
                         "image_url": image_url,
-                        "description": wiki_info.get("description") or cached_species_data.get("description", "No description available"),
+                        "description": description,
                         "status": cached_species_data.get("risk_level", "DD"),
                         "risk_level": cached_species_data.get("risk_level", "DD"),
                         "population": "Unknown",
@@ -1409,7 +1413,18 @@ class IUCNService:
                         "threats": [],
                         "country": cached_species_data.get("country", "Global"),
                         "color": "green",
+                        "lang": "en",
                     }
+
+                    # AI 번역 적용 (영어가 아닌 경우)
+                    if lang != "en":
+                        try:
+                            detail_response = await translation_service.translate_species_info(
+                                detail_response, target_lang=lang
+                            )
+                            print(f"✅ AI 번역 완료 (언어: {lang})")
+                        except Exception as e:
+                            print(f"⚠️ AI 번역 실패: {e}")
 
                     print(f"✅ ID 캐시 기반 상세 정보 구성 완료")
                     print(f"[RETURN] Detail data (from ID cache)")
@@ -1439,14 +1454,14 @@ class IUCNService:
             if cached_species_data:
                 print(f"🚀 캐시 데이터 사용하여 빠른 응답")
 
-                # Wikipedia 데이터 조회 (타임아웃 2초로 단축)
+                # Wikipedia 데이터 조회 (항상 영어로 가져옴 - 가장 완전한 정보)
                 wiki_info = {}
                 try:
                     wiki_info = await asyncio.wait_for(
-                        wikipedia_service.get_species_info(scientific_name),
+                        wikipedia_service.get_species_info(scientific_name, lang="en"),
                         timeout=2.0
                     )
-                    print(f"✅ Wikipedia 데이터 획득")
+                    print(f"✅ Wikipedia 데이터 획득 (영어)")
                 except asyncio.TimeoutError:
                     print(f"⏱️ Wikipedia 타임아웃 (2s)")
                 except Exception as e:
@@ -1455,6 +1470,7 @@ class IUCNService:
                 # 캐시된 데이터를 기반으로 상세 정보 구성
                 image_url = wiki_info.get("image_url") or cached_species_data.get("image_url", "")
                 common_name = wiki_info.get("common_name") or cached_species_data.get("common_name", scientific_name)
+                description = wiki_info.get("description") or cached_species_data.get("description", "No description available")
 
                 detail_response = {
                     "id": species_id,
@@ -1467,7 +1483,7 @@ class IUCNService:
                     "class": "Unknown",
                     "image": image_url,
                     "image_url": image_url,
-                    "description": wiki_info.get("description") or cached_species_data.get("description", "No description available"),
+                    "description": description,
                     "status": cached_species_data.get("risk_level", "DD"),
                     "risk_level": cached_species_data.get("risk_level", "DD"),
                     "population": "Unknown",
@@ -1475,7 +1491,18 @@ class IUCNService:
                     "threats": [],
                     "country": cached_species_data.get("country", "Global"),
                     "color": "green",
+                    "lang": "en",
                 }
+
+                # AI 번역 적용 (영어가 아닌 경우)
+                if lang != "en":
+                    try:
+                        detail_response = await translation_service.translate_species_info(
+                            detail_response, target_lang=lang
+                        )
+                        print(f"✅ AI 번역 완료 (언어: {lang})")
+                    except Exception as e:
+                        print(f"⚠️ AI 번역 실패: {e}")
 
                 print(f"✅ 캐시 기반 상세 정보 구성 완료")
                 print(f"[RETURN] Detail data (from cache)")
@@ -1559,15 +1586,15 @@ class IUCNService:
                 print(f"⚠️ v4 학명 조회 실패: {e}")
 
             # ========================================
-            # Step 6: Wikipedia 데이터 조회 (타임아웃 2초)
+            # Step 6: Wikipedia 데이터 조회 (항상 영어로 가져옴)
             # ========================================
             wiki_info = {}
             try:
                 wiki_info = await asyncio.wait_for(
-                    wikipedia_service.get_species_info(scientific_name),
+                    wikipedia_service.get_species_info(scientific_name, lang="en"),
                     timeout=2.0
                 )
-                print(f"✅ Wikipedia 데이터 획득")
+                print(f"✅ Wikipedia 데이터 획득 (영어)")
             except asyncio.TimeoutError:
                 print(f"⏱️ Wikipedia 타임아웃 (2s)")
             except Exception as e:
@@ -1585,7 +1612,7 @@ class IUCNService:
             detail_response = {
                 # 필수 식별 정보
                 "id": species_id,
-                "name": common_name,  # ⚡ 프론트엔드 필수 필드 추가
+                "name": common_name,
                 "scientific_name": scientific_name,
                 "common_name": common_name,
 
@@ -1612,8 +1639,19 @@ class IUCNService:
                 "habitat": "Various habitats",
                 "threats": [],
                 "country": "Global",
-                "color": "green",  # UI 표시용
+                "color": "green",
+                "lang": "en",
             }
+
+            # AI 번역 적용 (영어가 아닌 경우)
+            if lang != "en":
+                try:
+                    detail_response = await translation_service.translate_species_info(
+                        detail_response, target_lang=lang
+                    )
+                    print(f"✅ AI 번역 완료 (언어: {lang})")
+                except Exception as e:
+                    print(f"⚠️ AI 번역 실패: {e}")
 
             print(f"✅ 상세 정보 구성 완료")
             print(f"[RETURN] Detail data")

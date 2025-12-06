@@ -2,6 +2,7 @@ from fastapi import APIRouter, Query, Depends, Request
 from typing import Optional, Dict, Any, List
 from app.services.iucn_service import iucn_service
 from app.services.species_cache_builder import get_cached_counts, SPECIES_COUNT_CACHE
+from app.services.translation_service import translation_service
 from app.services.search_index import (
     search_species as search_species_index,
     get_species_countries,
@@ -544,18 +545,24 @@ async def get_all_countries_species_count(
     return country_counts
 
 @router.get("/{species_id}", response_model=Dict[str, Any])
-async def get_species_detail(species_id: int):
+async def get_species_detail(
+    species_id: int,
+    lang: str = Query("en", description="언어 코드 (ko, en, ja, zh 등)")
+):
     """
     특정 종의 상세 정보를 조회합니다.
     IUCN API와 Wikipedia API를 통해 실시간으로 데이터를 가져옵니다.
 
-    참고: species_id는 IUCN taxonid를 의미합니다.
+    Args:
+        species_id: IUCN taxonid
+        lang: 언어 코드 (ko=한국어, en=영어, ja=일본어, zh=중국어 등)
+              브라우저의 navigator.language에서 가져온 값 사용
     """
     try:
-        print(f"🔍 종 상세 정보 조회: ID {species_id}")
+        print(f"🔍 종 상세 정보 조회: ID {species_id} (언어: {lang})")
 
-        # IUCN API를 통해 상세 정보 조회
-        species_detail = await iucn_service.get_species_detail(species_id)
+        # IUCN API를 통해 상세 정보 조회 (언어 파라미터 전달)
+        species_detail = await iucn_service.get_species_detail(species_id, lang=lang)
 
         if not species_detail:
             return {
@@ -572,3 +579,19 @@ async def get_species_detail(species_id: int):
             "error": str(e),
             "id": species_id
         }
+
+
+@router.get("/stats/translations")
+async def get_translation_cache_stats():
+    """
+    번역 캐시 통계 조회
+
+    Returns:
+        언어별 캐시된 번역 개수
+        예: {"ko": 150, "ja": 80, "zh": 45}
+    """
+    from app.services.translation_service import translation_service
+    return {
+        "cache_stats": translation_service.get_cache_stats(),
+        "supported_languages": list(translation_service.SUPPORTED_LANGUAGES.keys())
+    }

@@ -209,13 +209,15 @@ export const fetchSpeciesByLocation = async (lat, lng, category, page = 1, limit
  * 특정 종의 상세 정보 조회
  *
  * @param {number} speciesId - 종 ID
+ * @param {string} lang - 언어 코드 (ko, en, ja, zh 등) - navigator.language에서 추출
  * @returns {Promise<Object>} 종 상세 정보
  */
-export const fetchSpeciesDetail = async (speciesId) => {
+export const fetchSpeciesDetail = async (speciesId, lang = 'en') => {
   try {
-    console.log(`🔍 종 상세 정보 조회: ID ${speciesId}`);
+    console.log(`🔍 종 상세 정보 조회: ID ${speciesId} (언어: ${lang})`);
 
-    const response = await apiRequest(`/api/v1/species/${speciesId}`);
+    const params = new URLSearchParams({ lang });
+    const response = await apiRequest(`/api/v1/species/${speciesId}?${params}`);
 
     console.log(`✅ 상세 정보 수신 완료: ${response.name}`);
 
