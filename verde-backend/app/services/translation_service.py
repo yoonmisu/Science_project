@@ -79,14 +79,11 @@ class TranslationService:
                         data = json.load(f)
                         self._cache[lang] = data.get("translations", {})
                         total_entries += len(self._cache[lang])
-                except Exception as e:
-                    print(f"⚠️ {lang} 번역 캐시 로드 실패: {e}")
+                except Exception:
                     self._cache[lang] = {}
             else:
                 self._cache[lang] = {}
 
-        if total_entries > 0:
-            print(f"✅ 번역 캐시 로드 완료: 총 {total_entries}개 항목")
 
     def _save_cache(self, lang: str):
         """특정 언어 캐시를 파일에 저장"""
@@ -104,9 +101,8 @@ class TranslationService:
                 }
                 with open(cache_file, 'w', encoding='utf-8') as f:
                     json.dump(data, f, ensure_ascii=False, indent=2)
-                print(f"💾 {lang} 번역 캐시 저장: {len(self._cache[lang])}개 항목")
-            except Exception as e:
-                print(f"⚠️ {lang} 번역 캐시 저장 실패: {e}")
+            except Exception:
+                pass
 
     def _get_cache_key(self, text: str) -> str:
         """캐시 키 생성 (텍스트의 MD5 해시)"""
@@ -165,12 +161,10 @@ class TranslationService:
         # 캐시 확인 (영구 캐시에서 조회)
         cached = self.get_cached_translation(text, target_lang)
         if cached:
-            print(f"✅ 번역 캐시 히트: {target_lang} ({len(text)} chars)")
             return cached
 
         # API 키 확인
         if not self.api_key:
-            print(f"⚠️ GOOGLE_TRANSLATE_API_KEY 미설정, 원본 반환")
             return text
 
         try:
@@ -197,18 +191,13 @@ class TranslationService:
                     # 영구 캐시에 저장
                     self.set_cached_translation(text, translated, target_lang)
 
-                    print(f"✅ Google 번역 완료: {target_lang} ({len(text)} -> {len(translated)} chars)")
                     return translated
                 else:
-                    print(f"⚠️ Google Translate 응답에 번역 결과 없음")
                     return text
             else:
-                error_msg = response.text[:200] if response.text else "Unknown error"
-                print(f"⚠️ Google Translate API 오류: {response.status_code} - {error_msg}")
                 return text
 
-        except Exception as e:
-            print(f"❌ 번역 오류: {e}")
+        except Exception:
             return text
 
     async def translate_species_info(
@@ -276,8 +265,7 @@ class TranslationService:
             species_data["translated"] = True
             species_data["lang"] = target_lang
 
-        except Exception as e:
-            print(f"❌ 종 정보 번역 오류: {e}")
+        except Exception:
             species_data["translated"] = False
             species_data["lang"] = "en"
 

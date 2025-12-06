@@ -50,35 +50,26 @@ class WikipediaService:
             base_url = self._get_base_url(lang)
             url = f"{base_url}/{title}"
 
-            print(f"🌐 Fetching Wikipedia ({lang}): {url}")
             response = await self.client.get(url)
 
-            print(f"📡 Wikipedia response status: {response.status_code}")
             if response.status_code != 200:
                 # 해당 언어에서 페이지를 찾지 못한 경우, 영어로 폴백
                 if lang != "en":
-                    print(f"⚠️ {lang} Wikipedia에서 찾지 못함, 영어로 폴백...")
                     return await self.get_species_info(scientific_name, lang="en")
-                print(f"⚠️ Non-200 status from Wikipedia for {scientific_name}: {response.status_code}")
                 return {}
 
             data = response.json()
-            print(f"📦 Wikipedia data keys: {list(data.keys())[:10]}")
 
             # 이미지 URL 우선순위: originalimage > thumbnail
             # originalimage가 있으면 더 고품질 이미지 사용
             image_url = ""
             if "originalimage" in data and data["originalimage"].get("source"):
                 image_url = data["originalimage"]["source"]
-                print(f"✅ Wikipedia originalimage: {image_url[:80]}...")
             elif "thumbnail" in data and data["thumbnail"].get("source"):
                 # thumbnail이 있으면 width를 800으로 확대
                 thumbnail_url = data["thumbnail"]["source"]
                 # URL에서 width 파라미터 수정 (예: /300px- -> /800px-)
                 image_url = thumbnail_url.replace("/300px-", "/800px-").replace("/200px-", "/800px-").replace("/400px-", "/800px-")
-                print(f"✅ Wikipedia thumbnail (upscaled): {image_url[:80]}...")
-            else:
-                print(f"⚠️ No image found in Wikipedia for {scientific_name}")
 
             result = {
                 "description": data.get("extract", ""),
@@ -87,11 +78,9 @@ class WikipediaService:
                 "lang": lang  # 어떤 언어에서 가져왔는지 표시
             }
 
-            print(f"📦 Wikipedia result for {scientific_name} ({lang}): image={'Yes' if image_url else 'No'}, desc={len(result['description'])} chars")
             return result
 
-        except Exception as e:
-            print(f"❌ Wikipedia API Error for {scientific_name}: {e}")
+        except Exception:
             return {}
 
     async def close(self):

@@ -16,7 +16,6 @@ class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("❌ ErrorBoundary가 에러를 캐치했습니다:", error, errorInfo);
     this.setState({ error, errorInfo });
   }
 
@@ -71,8 +70,6 @@ const App = () => {
   const [backendMessage, setBackendMessage] = useState("백엔드 연결 시도 중...");
 
   useEffect(() => {
-    console.log("🚀 App.jsx: 백엔드 연결 체크 시작");
-
     fetch("http://127.0.0.1:8000/")
       .then((res) => {
         if (!res.ok) {
@@ -81,12 +78,10 @@ const App = () => {
         return res.json();
       })
       .then((data) => {
-        console.log("✅ 백엔드 연결 성공:", data.message);
         setBackendMessage(data.message || "백엔드에서 메시지를 성공적으로 받음");
       })
       .catch((err) => {
-        console.error("⚠️ 백엔드 연결 실패:", err);
-        setBackendMessage("🚨 백엔드 연결 실패 (URL/서버 상태 확인 필요)");
+        setBackendMessage("백엔드 연결 실패");
       });
   }, []);
 

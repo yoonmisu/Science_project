@@ -3,67 +3,52 @@ import { X, ChevronRight, Search } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 import InteractiveDottedMap from '../components/InteractiveDottedMap';
 import { categoryThemes, countryNames, updateSpeciesCount, resetColorStats } from '../data/biodiversityData';
-import { fetchSpeciesByCountry, searchSpeciesByName, fetchTrendingSearches, fetchSpeciesDetail, fetchAllCountriesSpeciesCount } from '../services/api';
+import { fetchSpeciesByCountry, searchSpeciesByName, fetchTrendingSearches, fetchSpeciesDetail, fetchAllCountriesSpeciesCount, fetchDailyRandomSpecies, fetchWeeklyTopSpecies } from '../services/api';
 import { SpeciesCardSkeletonGrid } from '../components/SpeciesCardSkeleton';
 import ErrorMessage from '../components/ErrorMessage';
 
-// 브라우저 언어 감지 헬퍼 함수
 const getBrowserLanguage = () => {
-  // navigator.language에서 언어 코드 추출 (예: 'ko-KR' -> 'ko', 'en-US' -> 'en')
   const browserLang = navigator.language || navigator.userLanguage || 'en';
   const langCode = browserLang.split('-')[0].toLowerCase();
-
-  // 지원하는 언어 목록 (백엔드 wikipedia_service.py의 SUPPORTED_LANGUAGES와 동일)
   const supportedLanguages = ['ko', 'en', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'ru', 'it', 'vi', 'th', 'id'];
-
-  // 지원하는 언어면 해당 코드 반환, 아니면 영어로 폴백
   return supportedLanguages.includes(langCode) ? langCode : 'en';
 };
 
 const HomePage = () => {
-  console.log('🏠 HomePage 컴포넌트 초기화 중...');
 
   const [category, setCategory] = useState('동물');
-  const [selectedLocation, setSelectedLocation] = useState(null); // { name, countryCode }
+  const [selectedLocation, setSelectedLocation] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
   const [modalView, setModalView] = useState('species');
   const [speciesPage, setSpeciesPage] = useState(0);
 
-  // API 상태 관리
   const [speciesData, setSpeciesData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [totalPages, setTotalPages] = useState(0);
 
-  // 검색 기능 상태
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredCountries, setFilteredCountries] = useState(null); // null = 전체 표시, array = 필터링된 국가들
-  const [searchedSpeciesName, setSearchedSpeciesName] = useState(null); // 검색된 종 이름 (검색 모드일 때 사용)
-
-  // 실시간 검색어 상태
+  const [filteredCountries, setFilteredCountries] = useState(null);
+  const [searchedSpeciesName, setSearchedSpeciesName] = useState(null);
   const [trendingSearches, setTrendingSearches] = useState([]);
 
-  // 종 상세 정보 모달 상태
   const [selectedSpecies, setSelectedSpecies] = useState(null);
   const [speciesDetail, setSpeciesDetail] = useState(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
 
-  // 멸종위기 종류 보기 상태
-  const [endangeredData, setEndangeredData] = useState(null); // 카테고리별 그룹화된 데이터
+  const [endangeredData, setEndangeredData] = useState(null);
   const [isEndangeredLoading, setIsEndangeredLoading] = useState(false);
   const [endangeredError, setEndangeredError] = useState(null);
-  const [endangeredFilter, setEndangeredFilter] = useState(null); // null = 전체, 또는 카테고리명
+  const [endangeredFilter, setEndangeredFilter] = useState(null);
 
-  // 지도 시각화 데이터 로드 상태 (지도 재렌더링 트리거용)
   const [mapDataVersion, setMapDataVersion] = useState(0);
   const [isMapDataLoaded, setIsMapDataLoaded] = useState(false);
 
-  // API 데이터 사용 (mockData는 제거됨) - 함수 시작 부분으로 이동
-  const currentSpeciesData = speciesData || [];
+  const [dailyRandomSpecies, setDailyRandomSpecies] = useState(null);
+  const [weeklyTopSpecies, setWeeklyTopSpecies] = useState(null);
 
-  // 현재 카테고리의 테마
+  const currentSpeciesData = speciesData || [];
   const theme = categoryThemes[category];
 
   const categories = ['동물', '식물', '곤충', '해양생물'];
@@ -74,143 +59,94 @@ const HomePage = () => {
     해양생물: '🐠'
   };
 
-  // 실시간 검색어 로드
   useEffect(() => {
     const loadTrendingSearches = async () => {
       try {
         const result = await fetchTrendingSearches(7, 24);
         setTrendingSearches(result.data || []);
       } catch (error) {
-        console.error('❌ 실시간 검색어 로드 실패:', error);
         setTrendingSearches([]);
       }
     };
 
     loadTrendingSearches();
-
-    // 5분마다 업데이트
     const interval = setInterval(loadTrendingSearches, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // 카테고리 변경 시 모든 국가의 종 개수 로드 (지도 시각화용)
+  useEffect(() => {
+    const loadDailyAndWeeklySpecies = async () => {
+      try {
+        const [dailyResult, weeklyResult] = await Promise.all([
+          fetchDailyRandomSpecies(),
+          fetchWeeklyTopSpecies()
+        ]);
+        if (dailyResult) setDailyRandomSpecies(dailyResult);
+        if (weeklyResult) setWeeklyTopSpecies(weeklyResult);
+      } catch (error) {}
+    };
+    loadDailyAndWeeklySpecies();
+  }, []);
+
   useEffect(() => {
     const loadAllCountriesSpeciesCount = async () => {
       try {
-        // 로딩 시작
         setIsMapDataLoaded(false);
-        console.log(`🗺️ 지도 시각화 데이터 로드 시작 (카테고리: ${category})`);
-
         const countryCounts = await fetchAllCountriesSpeciesCount(category);
-
-        // 동적 종 개수 데이터 업데이트
         updateSpeciesCount(countryCounts, category);
-        console.log(`✅ 지도 시각화 데이터 업데이트 완료:`, countryCounts);
-
-        // 데이터 로드 완료 표시
         setIsMapDataLoaded(true);
-
-        // 지도 재렌더링 트리거 (데이터 로드 후)
         setMapDataVersion(v => v + 1);
       } catch (error) {
-        console.error('❌ 지도 시각화 데이터 로드 실패:', error);
-        setIsMapDataLoaded(true); // 실패해도 로딩 상태 해제
+        setIsMapDataLoaded(true);
       }
     };
-
-    // 색상 통계 캐시 초기화 (카테고리 변경 시)
     resetColorStats();
     loadAllCountriesSpeciesCount();
   }, [category]);
 
-  // 키보드 단축키 (상세 정보 모달에서 ←→ 화살표, ESC)
   useEffect(() => {
     if (!selectedSpecies) return;
-
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        closeDetailModal();
-      } else if (e.key === 'ArrowLeft') {
-        goToPreviousSpecies();
-      } else if (e.key === 'ArrowRight') {
-        goToNextSpecies();
-      }
+      if (e.key === 'Escape') closeDetailModal();
+      else if (e.key === 'ArrowLeft') goToPreviousSpecies();
+      else if (e.key === 'ArrowRight') goToNextSpecies();
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedSpecies, currentSpeciesData]);
 
-  // 위치와 카테고리가 선택되면 API 호출
   useEffect(() => {
-    if (!selectedLocation || !isModalOpen || modalView !== 'species') {
-      console.log('⏭️ useEffect 스킵:', { selectedLocation, isModalOpen, modalView });
-      return;
-    }
+    if (!selectedLocation || !isModalOpen || modalView !== 'species') return;
 
     const loadSpeciesData = async () => {
-      console.log('🔄 loadSpeciesData 시작');
       setIsLoading(true);
       setError(null);
-
       try {
-        // 국가 코드 매핑 없이 직접 전달 (백엔드에서 처리)
         const countryCode = selectedLocation.countryCode;
-
         if (!countryCode) {
-          console.error('⚠️ 국가 코드 없음:', selectedLocation);
           setError('국가 정보를 확인할 수 없습니다.');
           setSpeciesData([]);
           setIsLoading(false);
           return;
         }
-
-        console.log(`📡 API 호출 시작: ${selectedLocation.name} (${countryCode}) - ${category}, 페이지: ${speciesPage + 1}${searchedSpeciesName ? `, 검색: ${searchedSpeciesName}` : ''}`);
-
-        // ISO 코드 기반 API 호출 (검색 모드일 때 species_name 전달)
-        const response = await fetchSpeciesByCountry(
-          countryCode,
-          category,
-          speciesPage + 1,
-          3,
-          searchedSpeciesName  // 검색된 종 이름 (없으면 null)
-        );
-
-        console.log('📦 API 응답 받음:', response);
+        const response = await fetchSpeciesByCountry(countryCode, category, speciesPage + 1, 3, searchedSpeciesName);
         setSpeciesData(response.data);
         setTotalPages(response.totalPages);
-        console.log(`✅ 데이터 로드 성공: ${response.data.length}개 종`);
       } catch (err) {
-        console.error('❌ API 호출 실패:', err);
         setError(err.message || '데이터를 불러오는 중 오류가 발생했습니다.');
         setSpeciesData([]);
       } finally {
         setIsLoading(false);
-        console.log('🏁 loadSpeciesData 완료');
       }
     };
-
     loadSpeciesData();
   }, [selectedLocation?.countryCode, category, speciesPage, isModalOpen, modalView, searchedSpeciesName]);
 
-  // InteractiveDottedMap 콜백: { name, code } 객체를 받음 (좌표 정보는 제거됨)
   const handleCountryClick = (location) => {
-    console.log(`🗺️ 지도 클릭 이벤트 발생!`);
-    console.log('받은 location 데이터:', location);
-    console.log(`국가: ${location.name}, 코드: ${location.code}`);
-
-    // 국가 코드를 대문자로 변환 (API는 대문자 ISO 코드 사용)
-    const newLocation = {
-      name: location.name,
-      countryCode: location.code?.toUpperCase()
-    };
-
-    console.log('설정할 selectedLocation:', newLocation);
-    setSelectedLocation(newLocation);
+    setSelectedLocation({ name: location.name, countryCode: location.code?.toUpperCase() });
     setSpeciesPage(0);
     setModalView('species');
     setIsModalOpen(true);
-    console.log('모달 열기 완료');
   };
 
   const closeModal = () => {
@@ -223,241 +159,140 @@ const HomePage = () => {
     setIsEndangeredLoading(true);
     setEndangeredError(null);
     setEndangeredData(null);
-    setEndangeredFilter(null); // 필터 초기화
+    setEndangeredFilter(null);
 
     const categories = ['동물', '식물', '곤충', '해양생물'];
-    const categoryIcons = {
-      '동물': '🦌',
-      '식물': '🌿',
-      '곤충': '🐝',
-      '해양생물': '🐠'
-    };
+    const categoryIcons = { '동물': '🦌', '식물': '🌿', '곤충': '🐝', '해양생물': '🐠' };
 
     try {
-      console.log('📊 멸종위기 종류 데이터 로드 시작:', selectedLocation.countryCode);
-
-      // 모든 카테고리에 대해 병렬로 데이터 로드
       const results = await Promise.all(
         categories.map(async (cat) => {
           try {
-            const response = await fetchSpeciesByCountry(
-              selectedLocation.countryCode,
-              cat,
-              1,
-              30 // 각 카테고리당 최대 30개
-            );
-            return {
-              category: cat,
-              icon: categoryIcons[cat],
-              species: response.data || [],
-              total: response.total || 0
-            };
+            const response = await fetchSpeciesByCountry(selectedLocation.countryCode, cat, 1, 30);
+            return { category: cat, icon: categoryIcons[cat], species: response.data || [], total: response.total || 0 };
           } catch (err) {
-            console.warn(`⚠️ ${cat} 카테고리 로드 실패:`, err);
-            return {
-              category: cat,
-              icon: categoryIcons[cat],
-              species: [],
-              total: 0
-            };
+            return { category: cat, icon: categoryIcons[cat], species: [], total: 0 };
           }
         })
       );
-
-      console.log('✅ 멸종위기 종류 데이터 로드 완료:', results);
       setEndangeredData(results);
     } catch (err) {
-      console.error('❌ 멸종위기 종류 데이터 로드 실패:', err);
       setEndangeredError('데이터를 불러오는 중 오류가 발생했습니다.');
     } finally {
       setIsEndangeredLoading(false);
     }
   };
 
-  // 에러 재시도 핸들러
   const handleRetry = () => {
     setError(null);
-    setSpeciesPage(0); // 페이지 리셋하면 useEffect가 자동으로 재실행됨
+    setSpeciesPage(0);
   };
 
-  // 종 카드 클릭 핸들러 - 상세 정보 조회
   const handleSpeciesClick = async (species) => {
-    console.log('🔍 종 카드 클릭:', species);
     setSelectedSpecies(species);
     setIsDetailLoading(true);
     setDetailError(null);
     setSpeciesDetail(null);
 
     try {
-      // 브라우저 언어 감지하여 API에 전달
       const userLang = getBrowserLanguage();
-      console.log(`📡 상세 정보 API 호출: ID ${species.id} (언어: ${userLang})`);
-      const detail = await fetchSpeciesDetail(species.id, userLang);
-      console.log('✅ 상세 정보 수신:', detail);
-
-      // 백엔드에서 에러 응답을 반환한 경우 처리
-      if (detail.error) {
-        console.warn('⚠️ 백엔드 에러 응답:', detail.errorMessage);
-        // 에러가 있어도 데이터는 표시 (기본값으로 채워진 응답)
-      }
-
+      const scientificName = species.scientificName || species.scientific_name || null;
+      const detail = await fetchSpeciesDetail(species.id, userLang, scientificName);
       setSpeciesDetail(detail);
+      try {
+        const updatedWeekly = await fetchWeeklyTopSpecies();
+        if (updatedWeekly && updatedWeekly.taxonId) setWeeklyTopSpecies(updatedWeekly);
+      } catch (weeklyErr) {}
     } catch (err) {
-      console.error('❌ 상세 정보 조회 실패:', err);
       setDetailError(err.message || '상세 정보를 불러올 수 없습니다.');
     } finally {
       setIsDetailLoading(false);
     }
   };
 
-  // 상세 정보 모달 닫기
   const closeDetailModal = () => {
     setSelectedSpecies(null);
     setSpeciesDetail(null);
     setDetailError(null);
   };
 
-  // 팝업에서 이전 종으로 이동
   const goToPreviousSpecies = () => {
     if (!currentSpeciesData || currentSpeciesData.length === 0) return;
-
     const currentIndex = currentSpeciesData.findIndex(s => s.id === selectedSpecies.id);
-    if (currentIndex > 0) {
-      handleSpeciesClick(currentSpeciesData[currentIndex - 1]);
-    }
+    if (currentIndex > 0) handleSpeciesClick(currentSpeciesData[currentIndex - 1]);
   };
 
-  // 팝업에서 다음 종으로 이동
   const goToNextSpecies = () => {
     if (!currentSpeciesData || currentSpeciesData.length === 0) return;
-
     const currentIndex = currentSpeciesData.findIndex(s => s.id === selectedSpecies.id);
-    if (currentIndex < currentSpeciesData.length - 1) {
-      handleSpeciesClick(currentSpeciesData[currentIndex + 1]);
-    }
+    if (currentIndex < currentSpeciesData.length - 1) handleSpeciesClick(currentSpeciesData[currentIndex + 1]);
   };
 
   const handleNextPage = () => {
-    if (speciesPage < totalPages - 1) {
-      setSpeciesPage((prev) => prev + 1);
-    }
+    if (speciesPage < totalPages - 1) setSpeciesPage((prev) => prev + 1);
   };
 
   const handlePrevPage = () => {
-    if (speciesPage > 0) {
-      setSpeciesPage((prev) => prev - 1);
-    }
+    if (speciesPage > 0) setSpeciesPage((prev) => prev - 1);
   };
 
-  // 실시간 검색어 새로고침 함수
   const refreshTrendingSearches = async () => {
     try {
       const result = await fetchTrendingSearches(7, 24);
       setTrendingSearches(result.data || []);
-      console.log('🔄 실시간 검색어 업데이트:', result.data);
-    } catch (error) {
-      console.error('❌ 실시간 검색어 로드 실패:', error);
-    }
+    } catch (error) {}
   };
 
-  // 검색 처리 함수 (종 이름 기반, 디바운싱 적용)
   const handleSearch = async (query) => {
-    console.log('🔍 handleSearch 호출됨:', query);
-
     if (!query || !query.trim()) {
-      console.log('⚠️ 검색어 비어있음');
-      // 검색어가 비어있으면 전체 표시
       setFilteredCountries(null);
-      setSearchedSpeciesName(null); // 검색 필터 해제
-
-      // 전체 표시 시 모든 국가의 종 개수 다시 로드
+      setSearchedSpeciesName(null);
       try {
         const countryCounts = await fetchAllCountriesSpeciesCount(category);
         updateSpeciesCount(countryCounts, category);
-        // 지도 재렌더링 트리거
         setMapDataVersion(v => v + 1);
-      } catch (error) {
-        console.error('❌ 종 개수 로드 실패:', error);
-      }
+      } catch (error) {}
       return;
     }
 
     try {
-      console.log('📡 API 호출 시작:', query);
-      // 백엔드 API를 통해 종 검색 (카테고리 필터 없이 전체 검색)
       const result = await searchSpeciesByName(query, null);
-      console.log('✅ API 응답:', result);
-
       if (result.countries && result.countries.length > 0) {
-        console.log(`🎯 ${result.countries.length}개 국가 찾음:`, result.countries);
-        console.log(`🔍 검색된 종: ${result.matchedSpecies}`);
-
-        // 검색된 종의 카테고리 결정 (없으면 현재 카테고리 유지)
         const targetCategory = result.category || category;
-
-        // 매칭된 종의 카테고리로 자동 전환 (먼저 카테고리 변경)
-        if (result.category && result.category !== category) {
-          console.log('🔄 카테고리 변경:', category, '->', result.category);
-          setCategory(result.category);
-        }
-
-        // 필터링된 국가들 설정
+        if (result.category && result.category !== category) setCategory(result.category);
         setFilteredCountries(result.countries);
-
-        // 검색된 종의 학명 저장 (국가 클릭 시 해당 종만 표시하기 위해)
-        // matched_scientific_name이 있으면 학명 사용, 없으면 일반 이름 사용
         setSearchedSpeciesName(result.matchedScientificName || result.matchedSpecies);
-
-        // 필터링된 국가들의 실제 종 개수 업데이트 (새 카테고리에 맞게)
         const searchResultCounts = {};
-        result.countries.forEach(countryCode => {
-          searchResultCounts[countryCode] = 1; // 검색된 종 1개씩
-        });
-        // 새 카테고리에 종 개수 업데이트
+        result.countries.forEach(countryCode => { searchResultCounts[countryCode] = 1; });
         updateSpeciesCount(searchResultCounts, targetCategory);
-        console.log('📊 검색 결과 종 개수 업데이트:', searchResultCounts, '카테고리:', targetCategory);
-
-        // 지도 재렌더링 트리거
         setMapDataVersion(v => v + 1);
       } else {
-        console.log('❌ 검색 결과 없음');
         setFilteredCountries([]);
         setSearchedSpeciesName(null);
       }
-
-      // 검색 후 즉시 실시간 검색어 새로고침
       await refreshTrendingSearches();
     } catch (error) {
-      console.error('❌ 검색 오류:', error);
       setFilteredCountries([]);
       setSearchedSpeciesName(null);
     }
   };
 
-  // 검색어 입력 핸들러 (자동 검색 없음 - Enter/아이콘 클릭에서만 검색)
   const handleSearchInput = (value) => {
     setSearchQuery(value);
-
-    // 빈 값이면 필터 초기화
     if (!value.trim()) {
       setFilteredCountries(null);
-      setSearchedSpeciesName(null); // 검색 필터 해제
+      setSearchedSpeciesName(null);
     }
   };
 
-  // Enter 키로 검색
   const handleSearchKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      console.log('⌨️  Enter 키 눌림, 검색 시작:', searchQuery);
-      handleSearch(searchQuery);
-    }
+    if (e.key === 'Enter') handleSearch(searchQuery);
   };
 
-  // 검색 초기화
   const clearSearch = () => {
     setSearchQuery('');
     setFilteredCountries(null);
-    setSearchedSpeciesName(null); // 검색된 종 이름 초기화
+    setSearchedSpeciesName(null);
   };
 
   return (
@@ -511,10 +346,7 @@ const HomePage = () => {
                   cursor: 'pointer',
                   color: '#666'
                 }}
-                onClick={() => {
-                  console.log('🔎 검색 아이콘 클릭, 검색 시작:', searchQuery);
-                  handleSearch(searchQuery);
-                }}
+                onClick={() => handleSearch(searchQuery)}
               />
             </div>
             {filteredCountries !== null && (
@@ -563,11 +395,9 @@ const HomePage = () => {
                   key={cat}
                   onClick={() => {
                     setCategory(cat);
-                    // 카테고리 변경 시 필터링 초기화
                     setFilteredCountries(null);
                     setSearchQuery('');
-                    setSearchedSpeciesName(null); // 검색된 종 이름 초기화
-                    console.log(`✨ 카테고리 변경: ${cat} (필터링 초기화)`);
+                    setSearchedSpeciesName(null);
                   }}
                   style={{
                     padding: '12px 24px',
@@ -602,7 +432,7 @@ const HomePage = () => {
             <p style={{
               fontSize: '13px',
               color: '#7f8d7b',
-              marginBottom: '8px'
+              marginBottom: '30px'
             }}>
               ** 지역을 선택하면 {category} 카테고리에 맞는 생물들이 카드로 나타나요!
             </p>
@@ -641,51 +471,86 @@ const HomePage = () => {
         }}>
           <div style={{
             backgroundColor: '#ffffff',
-            height: '60px',
             borderRadius: '25px',
             boxShadow: '0 2px 8px rgba(150, 180, 150, 0.15)',
-            padding: '20px',
-            textAlign: 'center',
+            padding: '16px 20px',
             cursor: 'pointer',
             transition: 'box-shadow 0.3s',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center'
           }}
-
-            onClick={() => {/* 모달 열기 로직 추가 필요 */ }}
+            onClick={() => {
+              if (dailyRandomSpecies?.taxonId) {
+                // taxon_id가 있으면 상세 팝업으로 바로 연결
+                handleSpeciesClick({
+                  id: dailyRandomSpecies.taxonId,
+                  name: dailyRandomSpecies.koreanName || dailyRandomSpecies.commonName || dailyRandomSpecies.scientificName,
+                  scientific_name: dailyRandomSpecies.scientificName,
+                  category: dailyRandomSpecies.category
+                });
+              } else if (dailyRandomSpecies?.scientificName) {
+                // taxon_id가 없으면 검색 (fallback)
+                handleSearch(dailyRandomSpecies.scientificName);
+              }
+            }}
             onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(150, 180, 150, 0.25)'}
             onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(150, 180, 150, 0.15)'}
           >
-            <p style={{ fontSize: '18px', fontWeight: '600' }}>
-              👀
-              아직 정보가 없어요!
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '24px' }}>🎲</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>오늘의 생물</p>
+                {dailyRandomSpecies ? (
+                  <p style={{ fontSize: '16px', fontWeight: '600', color: '#2f6b2d' }}>
+                    {dailyRandomSpecies.koreanName || dailyRandomSpecies.commonName || dailyRandomSpecies.scientificName}
+                  </p>
+                ) : (
+                  <p style={{ fontSize: '14px', color: '#aaa' }}>로딩 중...</p>
+                )}
+              </div>
+              <ChevronRight size={20} color="#888" />
+            </div>
           </div>
 
           <div style={{
             backgroundColor: '#ffffff',
-            height: '60px',
             borderRadius: '25px',
             boxShadow: '0 2px 8px rgba(150, 180, 150, 0.15)',
-            padding: '20px',
-            textAlign: 'center',
+            padding: '16px 20px',
             cursor: 'pointer',
             transition: 'box-shadow 0.3s',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center'
           }}
-            onClick={() => {/* 모달 열기 로직 추가 필요 */ }}
+            onClick={() => {
+              if (weeklyTopSpecies?.taxonId) {
+                // taxon_id가 있으면 상세 팝업으로 바로 연결
+                handleSpeciesClick({
+                  id: weeklyTopSpecies.taxonId,
+                  name: weeklyTopSpecies.speciesName,
+                  scientific_name: weeklyTopSpecies.scientificName,
+                  category: weeklyTopSpecies.category
+                });
+              } else if (weeklyTopSpecies?.speciesName) {
+                // taxon_id가 없으면 검색 (fallback)
+                handleSearch(weeklyTopSpecies.speciesName);
+              }
+            }}
             onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(150, 180, 150, 0.25)'}
             onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 2px 8px rgba(150, 180, 150, 0.15)'}
           >
-            <p style={{ fontSize: '18px', fontWeight: '600' }}>
-              👀
-              아직 정보가 없어요!
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '24px' }}>🔥</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>주간 인기 생물</p>
+                {weeklyTopSpecies ? (
+                  <div>
+                    <p style={{ fontSize: '16px', fontWeight: '600', color: '#2f6b2d' }}>
+                      {weeklyTopSpecies.speciesName}
+                    </p>
+                  </div>
+                ) : (
+                  <p style={{ fontSize: '14px', color: '#aaa' }}>로딩 중...</p>
+                )}
+              </div>
+              <ChevronRight size={20} color="#888" />
+            </div>
           </div>
 
           <div>
@@ -738,9 +603,7 @@ const HomePage = () => {
                             // 검색된 종의 카테고리 결정
                             const targetCategory = result.category || category;
 
-                            // 매칭된 종의 카테고리로 자동 전환 (먼저 카테고리 변경)
                             if (result.category && result.category !== category) {
-                              console.log('🔄 카테고리 변경:', category, '->', result.category);
                               setCategory(result.category);
                             }
 
@@ -763,10 +626,8 @@ const HomePage = () => {
                             setFilteredCountries([]);
                             setSearchedSpeciesName(null);
                           }
-                          // 클릭 후에도 실시간 검색어 새로고침
                           await refreshTrendingSearches();
                         } catch (error) {
-                          console.error('❌ 검색 오류:', error);
                           setFilteredCountries([]);
                           setSearchedSpeciesName(null);
                         }
@@ -899,15 +760,12 @@ const HomePage = () => {
             </div>
             {modalView === 'species' && (
               <>
-                {/* 로딩 상태 */}
                 {isLoading && <SpeciesCardSkeletonGrid count={3} />}
 
-                {/* 에러 상태 */}
                 {!isLoading && error && (
                   <ErrorMessage message={error} onRetry={handleRetry} />
                 )}
 
-                {/* 빈 데이터 상태 */}
                 {!isLoading && !error && currentSpeciesData.length === 0 && (
                   <div style={{
                     textAlign: 'center',
@@ -926,7 +784,6 @@ const HomePage = () => {
                   </div>
                 )}
 
-                {/* 데이터 표시 */}
                 {!isLoading && !error && currentSpeciesData.length > 0 && (
                   <div style={{
                     display: 'grid',
@@ -993,7 +850,6 @@ const HomePage = () => {
                     ))}
                   </div>
                 )}
-                {/* 페이지네이션 버튼 - 로딩 중이거나 에러일 때는 숨김 */}
                 {!isLoading && !error && (
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     {speciesPage > 0 ? (

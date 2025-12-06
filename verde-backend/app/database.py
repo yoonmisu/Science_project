@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models.search_history import Base
+from app.models.search_history import Base, SearchHistory
+from app.models.detail_view_history import DetailViewHistory, Base as DetailBase
 import os
 
 # SQLite 데이터베이스 경로
@@ -19,6 +20,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def init_db():
     """데이터베이스 초기화 및 테이블 생성"""
     Base.metadata.create_all(bind=engine)
+    DetailBase.metadata.create_all(bind=engine)
     print("✅ 데이터베이스 테이블이 생성되었습니다.")
 
 # 데이터베이스 세션 의존성

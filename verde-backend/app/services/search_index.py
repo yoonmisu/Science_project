@@ -629,7 +629,6 @@ def load_search_index():
     """검색 인덱스를 로드합니다."""
     global KEYWORD_INDEX, SPECIES_DATA
     KEYWORD_INDEX, SPECIES_DATA = build_search_index()
-    print(f"🔍 검색 인덱스 로드 완료: {len(KEYWORD_INDEX)} 키워드, {len(SPECIES_DATA)} 종")
 
 
 def fuzzy_match_keyword(query: str, threshold: float = 0.6) -> List[str]:

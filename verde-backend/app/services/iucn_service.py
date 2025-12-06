@@ -8,29 +8,23 @@ from app.core.config import settings
 from datetime import datetime, timedelta
 from functools import partial, lru_cache
 
-# Continent detection (동적 국가 지원을 위해 유지)
 try:
     import pycountry_convert as pc
 except ImportError:
     pc = None
-    print("⚠️ pycountry_convert not installed. Will use pycountry only.")
 
 class IUCNService:
-    # 육상 척추동물 클래스 (포유류, 조류, 파충류, 양서류)
     TERRESTRIAL_VERTEBRATE_CLASSES = ['MAMMALIA', 'AVES', 'REPTILIA', 'AMPHIBIA']
 
-    # 카테고리 -> IUCN 분류군 매핑 (동적 필터링용)
     CATEGORY_TO_CLASSES = {
-        "동물": ['MAMMALIA', 'AVES', 'REPTILIA', 'AMPHIBIA'],  # 포유류, 조류, 파충류, 양서류
-        "식물": ['LILIOPSIDA', 'MAGNOLIOPSIDA', 'PINOPSIDA', 'POLYPODIOPSIDA', 'CYCADOPSIDA', 'GINKGOOPSIDA', 'GNETOPSIDA'],  # 식물 클래스들
-        "곤충": ['INSECTA'],  # 곤충
-        "해양생물": ['ACTINOPTERYGII', 'CHONDRICHTHYES', 'MALACOSTRACA', 'CEPHALOPODA', 'ANTHOZOA', 'MAMMALIA'],  # 어류, 갑각류, 두족류, 산호, 해양포유류
+        "동물": ['MAMMALIA', 'AVES', 'REPTILIA', 'AMPHIBIA'],
+        "식물": ['LILIOPSIDA', 'MAGNOLIOPSIDA', 'PINOPSIDA', 'POLYPODIOPSIDA', 'CYCADOPSIDA', 'GINKGOOPSIDA', 'GNETOPSIDA'],
+        "곤충": ['INSECTA'],
+        "해양생물": ['ACTINOPTERYGII', 'CHONDRICHTHYES', 'MALACOSTRACA', 'CEPHALOPODA', 'ANTHOZOA', 'MAMMALIA'],
     }
 
-    # 해양생물 판별용 키워드 (서식지 또는 과학명 기반)
     MARINE_KEYWORDS = ['marine', 'ocean', 'sea', 'coral', 'whale', 'dolphin', 'shark', 'turtle', 'dugong', 'manatee']
 
-    # 지도/분포도 이미지 필터링 키워드 (URL 또는 파일명에 포함되면 제외)
     MAP_IMAGE_KEYWORDS = [
         'map', 'Map', 'MAP',
         'range', 'Range', 'RANGE',
@@ -41,40 +35,29 @@ class IUCNService:
         'spread', 'Spread',
         'geographic', 'Geographic',
         'territory', 'Territory',
-        '_dis.', '_dis_',  # distribution 약어
+        '_dis.', '_dis_',
         'LocationMap', 'location_map',
         'AreaMap', 'area_map',
         'RangeMap', 'range_map',
         'Locator', 'locator',
         'BlankMap', 'Blank_map',
-        'svg',  # 대부분의 지도는 SVG
+        'svg',
     ]
 
     @staticmethod
     def is_valid_species_image(image_url: str) -> bool:
-        """
-        이미지 URL이 유효한 종 사진인지 확인 (지도/분포도 이미지 필터링)
-
-        Returns:
-            True: 유효한 종 사진
-            False: 지도/분포도 이미지 또는 빈 URL
-        """
         if not image_url:
             return False
 
-        # URL을 소문자로 변환하여 검사
         url_lower = image_url.lower()
 
-        # 지도 이미지 키워드 체크
         for keyword in IUCNService.MAP_IMAGE_KEYWORDS:
             if keyword.lower() in url_lower:
                 return False
 
-        # SVG 이미지는 대부분 지도이므로 제외
         if url_lower.endswith('.svg'):
             return False
 
-        # 추가 패턴 체크: 국가명이 포함된 지도
         map_patterns = [
             'in_europe', 'in_asia', 'in_africa', 'in_america',
             'in_australia', 'world_', 'globe_', 'earth_',
@@ -86,70 +69,38 @@ class IUCNService:
 
         return True
 
-    # 국가별 대표 동물 (IUCN API에서 누락되는 대표 포유류)
-    # 학명으로 매핑하여 IUCN taxon API에서 직접 조회
     ICONIC_ANIMALS = {
-        # 중국
-        'CN': ['Ailuropoda melanoleuca', 'Panthera tigris', 'Rhinopithecus roxellana', 'Ailurus fulgens'],  # 판다, 호랑이, 황금원숭이, 레서판다
-        # 러시아
-        'RU': ['Ursus maritimus', 'Panthera tigris', 'Ursus arctos', 'Canis lupus'],  # 북극곰, 호랑이, 불곰, 늑대
-        # 일본
-        'JP': ['Macaca fuscata', 'Naemorhedus crispus', 'Ursus thibetanus'],  # 일본원숭이, 일본산양, 반달가슴곰
-        # 한국
-        'KR': ['Ursus thibetanus', 'Panthera pardus', 'Naemorhedus caudatus', 'Neophocaena asiaeorientalis'],  # 반달가슴곰, 표범, 산양, 상괭이
-        # 미국
-        'US': ['Ursus americanus', 'Bison bison', 'Puma concolor', 'Ursus arctos'],  # 흑곰, 바이슨, 퓨마, 불곰
-        # 캐나다
-        'CA': ['Ursus maritimus', 'Alces alces', 'Castor canadensis', 'Ursus arctos'],  # 북극곰, 무스, 비버, 불곰
-        # 호주
-        'AU': ['Phascolarctos cinereus', 'Macropus rufus', 'Ornithorhynchus anatinus', 'Vombatus ursinus'],  # 코알라, 붉은캥거루, 오리너구리, 웜뱃
-        # 브라질
-        'BR': ['Panthera onca', 'Tapirus terrestris', 'Myrmecophaga tridactyla', 'Bradypus variegatus'],  # 재규어, 맥, 큰개미핥기, 세줄나무늘보
-        # 인도
-        'IN': ['Panthera tigris', 'Elephas maximus', 'Rhinoceros unicornis', 'Panthera leo'],  # 호랑이, 아시아코끼리, 인도코뿔소, 사자
-        # 케냐
-        'KE': ['Loxodonta africana', 'Panthera leo', 'Giraffa camelopardalis', 'Diceros bicornis'],  # 아프리카코끼리, 사자, 기린, 검은코뿔소
-        # 남아프리카
-        'ZA': ['Loxodonta africana', 'Panthera leo', 'Ceratotherium simum', 'Diceros bicornis'],  # 코끼리, 사자, 흰코뿔소, 검은코뿔소
-        # 독일
-        'DE': ['Lynx lynx', 'Canis lupus', 'Sus scrofa', 'Cervus elaphus'],  # 스라소니, 늑대, 멧돼지, 붉은사슴
-        # 영국
-        'GB': ['Cervus elaphus', 'Meles meles', 'Vulpes vulpes', 'Lutra lutra'],  # 붉은사슴, 오소리, 여우, 수달
-        # 프랑스
-        'FR': ['Ursus arctos', 'Lynx lynx', 'Canis lupus', 'Cervus elaphus'],  # 불곰, 스라소니, 늑대, 붉은사슴
-        # 멕시코
-        'MX': ['Panthera onca', 'Puma concolor', 'Tapirus bairdii', 'Ursus americanus'],  # 재규어, 퓨마, 중앙아메리카맥, 흑곰
-        # 인도네시아
-        'ID': ['Pongo pygmaeus', 'Panthera tigris', 'Rhinoceros sondaicus', 'Elephas maximus'],  # 오랑우탄, 호랑이, 자바코뿔소, 코끼리
-        # 뉴질랜드
-        'NZ': ['Apteryx mantelli', 'Apteryx australis'],  # 키위 (조류지만 대표적)
+        'CN': ['Ailuropoda melanoleuca', 'Panthera tigris', 'Rhinopithecus roxellana', 'Ailurus fulgens'],
+        'RU': ['Ursus maritimus', 'Panthera tigris', 'Ursus arctos', 'Canis lupus'],
+        'JP': ['Macaca fuscata', 'Naemorhedus crispus', 'Ursus thibetanus'],
+        'KR': ['Ursus thibetanus', 'Panthera pardus', 'Naemorhedus caudatus', 'Neophocaena asiaeorientalis'],
+        'US': ['Ursus americanus', 'Bison bison', 'Puma concolor', 'Ursus arctos'],
+        'CA': ['Ursus maritimus', 'Alces alces', 'Castor canadensis', 'Ursus arctos'],
+        'AU': ['Phascolarctos cinereus', 'Macropus rufus', 'Ornithorhynchus anatinus', 'Vombatus ursinus'],
+        'BR': ['Panthera onca', 'Tapirus terrestris', 'Myrmecophaga tridactyla', 'Bradypus variegatus'],
+        'IN': ['Panthera tigris', 'Elephas maximus', 'Rhinoceros unicornis', 'Panthera leo'],
+        'KE': ['Loxodonta africana', 'Panthera leo', 'Giraffa camelopardalis', 'Diceros bicornis'],
+        'ZA': ['Loxodonta africana', 'Panthera leo', 'Ceratotherium simum', 'Diceros bicornis'],
+        'DE': ['Lynx lynx', 'Canis lupus', 'Sus scrofa', 'Cervus elaphus'],
+        'GB': ['Cervus elaphus', 'Meles meles', 'Vulpes vulpes', 'Lutra lutra'],
+        'FR': ['Ursus arctos', 'Lynx lynx', 'Canis lupus', 'Cervus elaphus'],
+        'MX': ['Panthera onca', 'Puma concolor', 'Tapirus bairdii', 'Ursus americanus'],
+        'ID': ['Pongo pygmaeus', 'Panthera tigris', 'Rhinoceros sondaicus', 'Elephas maximus'],
+        'NZ': ['Apteryx mantelli', 'Apteryx australis'],
     }
 
     def __init__(self):
-        # ========================================
-        # v4 API 설정 (Cloudflare 우회)
-        # ========================================
         self.base_url = "https://api.iucnredlist.org/api/v4"
         self.token = settings.IUCN_API_KEY
-        
-        # cloudscraper로 Cloudflare 우회 (동기 방식)
         self.scraper = cloudscraper.create_scraper()
-        
-        # Bearer 토큰 인증 (v4 방식)
         self.headers = {
             "Authorization": f"Bearer {self.token}",
             "Accept": "application/json"
         }
-
-        # 국가별 데이터 캐시 (메모리 캐시, 1시간 유지)
         self.country_cache: Dict[str, Dict[str, Any]] = {}
-        # 종별 데이터 캐시 (학명 기반, LRU)
         self.species_cache: Dict[str, Dict[str, Any]] = {}
-        # ID -> 종 데이터 캐시 (상세 조회용)
         self.id_to_species_cache: Dict[int, Dict[str, Any]] = {}
         self.cache_ttl = timedelta(hours=1)
-
-        # IP별 마지막 검색어 캐시 (중복 검색 방지용)
         self.last_search_cache: Dict[str, str] = {}
     
     async def _make_request(self, url: str, params: dict = None) -> Any:
@@ -164,7 +115,6 @@ class IUCNService:
             )
             return response
         except Exception as e:
-            print(f"❌ Request Error: {e}")
             raise
     
     def _v4_to_v3_adapter(self, v4_data: Dict[str, Any], scientific_name: str) -> Optional[Dict[str, Any]]:
@@ -218,7 +168,6 @@ class IUCNService:
             return result
             
         except Exception as e:
-            print(f"⚠️ Adapter Error for {scientific_name}: {e}")
             return None
     
     def _normalize_country_code(self, country_input: str) -> Optional[str]:
@@ -303,10 +252,7 @@ class IUCNService:
                 if hasattr(country, 'common_name') and country.common_name.lower() == country_lower:
                     return country.alpha_2
         except Exception as e:
-            print(f"⚠️ pycountry 검색 오류: {e}")
-
         # 6. 모든 방법 실패 시 None 반환
-        print(f"⚠️ 국가 코드 변환 실패: '{country_input}' (pycountry가 인식하지 못함)")
         return None
 
     def _get_continent_code(self, country_code: str) -> Optional[str]:
@@ -396,10 +342,7 @@ class IUCNService:
 
         continent = COUNTRY_TO_CONTINENT.get(country_code.upper())
         if continent:
-            print(f"🗺️ Continent Detection: {country_code} -> {continent}")
             return continent
-
-        print(f"⚠️ 대륙 매핑 실패: '{country_code}' (알 수 없는 국가)")
         return None
 
     # 해양포유류 목(Order) - 고래, 돌고래, 물개 등
@@ -510,10 +453,8 @@ class IUCNService:
             if response.status_code == 200:
                 return response.json()
             else:
-                print(f"⚠️ Country API 오류: {response.status_code}")
                 return {"assessments": []}
         except Exception as e:
-            print(f"❌ Country API 요청 실패: {e}")
             return {"assessments": []}
 
     async def get_species_count_fast(self, country_code: str) -> int:
@@ -590,7 +531,6 @@ class IUCNService:
             return score
 
         except Exception as e:
-            print(f"⚠️ Fast score 실패 ({country_code}): {e}")
             return 0
 
     async def get_species_count_by_category(self, country_code: str, category: str) -> int:
@@ -725,7 +665,6 @@ class IUCNService:
             return count
 
         except Exception as e:
-            print(f"⚠️ Category count 실패 ({country_code}/{category}): {e}")
             return 0
 
     async def _fetch_taxon_info(self, scientific_name: str) -> Optional[Dict[str, Any]]:
@@ -771,9 +710,6 @@ class IUCNService:
         iconic_names = self.ICONIC_ANIMALS.get(country_code.upper(), [])
         if not iconic_names:
             return []
-
-        print(f"🦁 대표 동물 조회 시작: {country_code} ({len(iconic_names)}종)")
-
         iconic_species = []
 
         async def fetch_one_iconic(scientific_name: str) -> Optional[Dict[str, Any]]:
@@ -789,7 +725,6 @@ class IUCNService:
                 # taxon 정보 조회
                 taxon_info = await self._fetch_taxon_info(scientific_name)
                 if not taxon_info:
-                    print(f"  ⚠️ {scientific_name}: taxon 조회 실패")
                     return None
 
                 sis_id = taxon_info.get('sis_id')
@@ -821,7 +756,6 @@ class IUCNService:
                 # 이미지 URL (이미지 없거나 지도 이미지면 필터링)
                 image_url = wiki_info.get("image_url", "")
                 if not self.is_valid_species_image(image_url):
-                    print(f"  ⚠️ {scientific_name}: 유효한 이미지 없음 → 제외")
                     return None  # 이미지 없거나 지도 이미지인 대표 동물 필터링
 
                 # IUCN 위험 등급 조회 (assessment 엔드포인트)
@@ -864,12 +798,9 @@ class IUCNService:
                         'data': species_data,
                         'timestamp': datetime.now()
                     }
-
-                print(f"  ✅ {scientific_name} → {common_name}")
                 return species_data
 
             except Exception as e:
-                print(f"  ❌ {scientific_name}: {e}")
                 return None
 
         # 병렬로 대표 동물 조회 (세마포어로 제한)
@@ -885,8 +816,6 @@ class IUCNService:
         for result in results:
             if result and not isinstance(result, Exception):
                 iconic_species.append(result)
-
-        print(f"🦁 대표 동물 조회 완료: {len(iconic_species)}종 확보")
         return iconic_species
 
     async def get_species_by_country(self, country_code: str, category: str = None, species_name: str = None) -> List[Dict[str, Any]]:
@@ -909,14 +838,9 @@ class IUCNService:
         """
         try:
             original_input = country_code
-            print(f"\n{'='*60}")
-            print(f"[ENTRY] get_species_by_country 시작")
-            print(f"  입력값: '{original_input}', 카테고리: '{category}', 종이름: '{species_name}'")
-
             # 1. 국가 코드 정규화
             country_code = self._normalize_country_code(country_code)
             if not country_code:
-                print(f"⚠️ 알 수 없는 국가: '{original_input}'")
                 return []
 
             # 2. 캐시 확인 (카테고리별 캐시)
@@ -926,11 +850,9 @@ class IUCNService:
                 cache_time = cache_entry.get('timestamp')
                 if cache_time and datetime.now() - cache_time < self.cache_ttl:
                     cached_data = cache_entry.get('data', [])
-                    print(f"💾 캐시 히트: {cache_key} ({len(cached_data)}개)")
                     return cached_data
 
             # 3. IUCN API v4 /countries/{code} 호출 (10페이지, 1000종 - 다양한 클래스 포함)
-            print(f"🌐 IUCN API 호출: /countries/{country_code}")
             all_assessments = []
             for page in range(1, 11):  # 10페이지까지 (1000종) - 더 다양한 클래스 포함
                 response_data = await self._fetch_country_assessments(country_code, page)
@@ -942,11 +864,7 @@ class IUCNService:
                     break
 
             if not all_assessments:
-                print(f"⚠️ 해당 국가의 종 데이터가 없습니다")
                 return []
-
-            print(f"📊 총 {len(all_assessments)}개 종 조회됨")
-
             # 4. taxon 정보 조회 + 카테고리 필터링 + Wikipedia 보강 (병렬 처리)
             async def enrich_and_filter(assessment: Dict[str, Any]) -> Optional[Dict[str, Any]]:
                 """종 데이터 보강 및 카테고리 필터링"""
@@ -1080,7 +998,6 @@ class IUCNService:
                     return species_data
 
                 except Exception as e:
-                    print(f"⚠️ 보강 실패: {e}")
                     return None
 
             # === 개선된 샘플링 전략 ===
@@ -1131,9 +1048,6 @@ class IUCNService:
                         seen.add(key)
                         unique_samples.append(a)
                 sample_assessments = unique_samples[:350]  # 최대 350개 샘플링
-
-            print(f"🔍 {len(sample_assessments)}개 종 카테고리 확인 및 보강 시작... (총 {total_species}개 중 범위별 샘플링)")
-
             # 세마포어로 동시 요청 제한 (API 부하 방지)
             semaphore = asyncio.Semaphore(20)  # 더 많은 병렬 요청 허용
 
@@ -1148,15 +1062,12 @@ class IUCNService:
                     timeout=120.0  # 350개 처리를 위해 타임아웃 증가
                 )
             except asyncio.TimeoutError:
-                print(f"⚠️ 타임아웃 (120s)")
                 results = []
 
             # 디버깅: 결과 통계
             none_count = sum(1 for r in results if r is None)
             exception_count = sum(1 for r in results if isinstance(r, Exception))
             success_count = sum(1 for r in results if r is not None and not isinstance(r, Exception))
-            print(f"📊 처리 결과: 성공 {success_count}, 필터링됨 {none_count}, 예외 {exception_count} (총 {len(results)})")
-
             # 성공한 결과만 필터링 (카테고리 일치 + 데이터 있음)
             species_data = [r for r in results if r is not None and not isinstance(r, Exception)]
 
@@ -1181,9 +1092,6 @@ class IUCNService:
                 if image_url:
                     seen_images.add(image_url)
                 unique_species.append(species)
-
-            print(f"📊 API 데이터 결과: {len(unique_species)}개 종")
-
             # ========================================
             # 대표 동물 병합 (동물 카테고리 전용)
             # IUCN /countries/{code} 엔드포인트에서 누락되는
@@ -1213,10 +1121,6 @@ class IUCNService:
                     iconic_added += 1
 
                 if iconic_added > 0:
-                    print(f"🦁 대표 동물 {iconic_added}종 추가됨 (맨 앞 배치)")
-
-            print(f"✅ 최종 결과: {len(unique_species)}개 종")
-
             # 캐시 저장 (species_name 필터 없을 때만)
             if not species_name:
                 self.country_cache[cache_key] = {
@@ -1229,8 +1133,6 @@ class IUCNService:
             # ========================================
             if species_name:
                 species_name_lower = species_name.lower()
-                print(f"🔍 종 이름 필터링: '{species_name}'")
-
                 # scientific_name 또는 common_name에 검색어가 포함된 종만 필터링
                 filtered_species = [
                     sp for sp in unique_species
@@ -1238,13 +1140,10 @@ class IUCNService:
                         sp.get('common_name', '').lower().find(species_name_lower) >= 0 or
                         sp.get('name', '').lower().find(species_name_lower) >= 0)
                 ]
-                print(f"🔍 필터링 결과: {len(filtered_species)}개 종 (전체 {len(unique_species)}개 중)")
-
                 # ========================================
                 # 폴백: 필터링 결과가 0개일 때 직접 taxon API 조회
                 # ========================================
                 if len(filtered_species) == 0 and ' ' in species_name:
-                    print(f"🔄 폴백: IUCN taxon API로 '{species_name}' 직접 조회")
                     try:
                         # taxon 정보 조회
                         taxon_info = await self._fetch_taxon_info(species_name)
@@ -1260,10 +1159,7 @@ class IUCNService:
                                     wikipedia_service.get_species_info(scientific_name_from_api),
                                     timeout=2.0
                                 )
-                                print(f"  ✅ Wikipedia 데이터 획득")
                             except (asyncio.TimeoutError, Exception) as e:
-                                print(f"  ⏱️ Wikipedia 조회 실패: {e}")
-
                             # 공통 이름 결정
                             common_name = wiki_info.get("common_name")
                             if not common_name:
@@ -1316,35 +1212,22 @@ class IUCNService:
                             }
 
                             filtered_species = [fallback_species]
-                            print(f"  ✅ 폴백 성공: {common_name} ({scientific_name_from_api})")
                         else:
-                            print(f"  ⚠️ 폴백 실패: taxon 정보 없음")
                     except Exception as e:
-                        print(f"  ❌ 폴백 오류: {e}")
-
                 unique_species = filtered_species
 
             # ========================================
             # [LOG 5/5 - Return] 최종 반환 데이터
             # ========================================
-            print(f"[RETURN] 최종 데이터 반환")
-            print(f"  타입: {type(unique_species)}")
-            print(f"  길이: {len(unique_species)}")
             if unique_species:
-                print(f"  샘플 키: {list(unique_species[0].keys())}")
-            print(f"{'='*60}\n")
-
             return unique_species
 
         except Exception as e:
-            print(f"❌ Country Service Error ({country_code}): {e}")
             import traceback
             traceback.print_exc()
-            print(f"[RETURN] 예외 발생으로 빈 리스트 반환")
-            print(f"{'='*60}\n")
             return []
 
-    async def get_species_detail(self, species_id: int, lang: str = "en") -> Optional[Dict[str, Any]]:
+    async def get_species_detail(self, species_id: int, lang: str = "en", scientific_name_hint: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         특정 종의 상세 정보를 IUCN v4 API와 Wikipedia에서 조회합니다.
 
@@ -1353,20 +1236,17 @@ class IUCNService:
         - Wikipedia 통합 (2초 타임아웃)
         - 프론트엔드 호환 완벽 보장
         - 다국어 지원: 요청된 언어의 Wikipedia에서 정보 조회
+        - scientific_name_hint: 학명을 미리 알고 있을 경우 직접 전달 (캐시 미스 시 사용)
 
         Args:
             species_id: IUCN sis_id (v4 기준)
             lang: 언어 코드 (ko=한국어, en=영어, ja=일본어, zh=중국어 등)
+            scientific_name_hint: 학명 힌트 (선택, 캐시 미스 시 이 값을 사용)
 
         Returns:
             종 상세 정보 딕셔너리 (모든 필드 보장) 또는 None
         """
         try:
-            print(f"\n{'='*60}")
-            print(f"[DETAIL] get_species_detail 시작")
-            print(f"  Species ID: {species_id}, 언어: {lang}")
-            print(f"{'='*60}")
-
             # ========================================
             # Step 0: ID 캐시에서 먼저 확인 (가장 빠른 경로)
             # ========================================
@@ -1376,8 +1256,6 @@ class IUCNService:
                 if cache_time and datetime.now() - cache_time < self.cache_ttl:
                     cached_species_data = cache_entry.get('data', {})
                     scientific_name = cached_species_data.get('scientific_name')
-                    print(f"✅ ID 캐시에서 발견: {scientific_name}")
-
                     # Wikipedia 데이터 조회 (항상 영어로 가져옴 - 가장 완전한 정보)
                     wiki_info = {}
                     try:
@@ -1385,10 +1263,7 @@ class IUCNService:
                             wikipedia_service.get_species_info(scientific_name, lang="en"),
                             timeout=2.0
                         )
-                        print(f"✅ Wikipedia 데이터 획득 (영어)")
                     except (asyncio.TimeoutError, Exception) as e:
-                        print(f"⏱️ Wikipedia 조회 실패: {e}")
-
                     # 캐시된 데이터를 기반으로 상세 정보 구성
                     image_url = wiki_info.get("image_url") or cached_species_data.get("image_url", "")
                     common_name = wiki_info.get("common_name") or cached_species_data.get("common_name", scientific_name)
@@ -1422,13 +1297,7 @@ class IUCNService:
                             detail_response = await translation_service.translate_species_info(
                                 detail_response, target_lang=lang
                             )
-                            print(f"✅ AI 번역 완료 (언어: {lang})")
                         except Exception as e:
-                            print(f"⚠️ AI 번역 실패: {e}")
-
-                    print(f"✅ ID 캐시 기반 상세 정보 구성 완료")
-                    print(f"[RETURN] Detail data (from ID cache)")
-                    print(f"{'='*60}\n")
                     return detail_response
 
             # ========================================
@@ -1444,7 +1313,6 @@ class IUCNService:
                 if cached_data.get('sis_id') == species_id:
                     scientific_name = cached_data.get('scientific_name')
                     cached_species_data = cached_data
-                    print(f"✅ taxon 캐시에서 학명 발견: {scientific_name}")
                     break
 
             # ========================================
@@ -1452,8 +1320,6 @@ class IUCNService:
             # (v4 API 재호출 없이 빠르게 응답)
             # ========================================
             if cached_species_data:
-                print(f"🚀 캐시 데이터 사용하여 빠른 응답")
-
                 # Wikipedia 데이터 조회 (항상 영어로 가져옴 - 가장 완전한 정보)
                 wiki_info = {}
                 try:
@@ -1461,12 +1327,8 @@ class IUCNService:
                         wikipedia_service.get_species_info(scientific_name, lang="en"),
                         timeout=2.0
                     )
-                    print(f"✅ Wikipedia 데이터 획득 (영어)")
                 except asyncio.TimeoutError:
-                    print(f"⏱️ Wikipedia 타임아웃 (2s)")
                 except Exception as e:
-                    print(f"⚠️ Wikipedia 오류: {e}")
-
                 # 캐시된 데이터를 기반으로 상세 정보 구성
                 image_url = wiki_info.get("image_url") or cached_species_data.get("image_url", "")
                 common_name = wiki_info.get("common_name") or cached_species_data.get("common_name", scientific_name)
@@ -1500,26 +1362,16 @@ class IUCNService:
                         detail_response = await translation_service.translate_species_info(
                             detail_response, target_lang=lang
                         )
-                        print(f"✅ AI 번역 완료 (언어: {lang})")
                     except Exception as e:
-                        print(f"⚠️ AI 번역 실패: {e}")
-
-                print(f"✅ 캐시 기반 상세 정보 구성 완료")
-                print(f"[RETURN] Detail data (from cache)")
-                print(f"{'='*60}\n")
                 return detail_response
 
             # ========================================
             # Step 3: 캐시 미스 시 v4 API로 학명 조회
             # (주의: v4는 ID 기반 조회가 제한적, 실패 시 fallback)
             # ========================================
-            print(f"⚠️ 캐시에 없음. ID {species_id}로 직접 조회 시도...")
-
             # v4 API: /taxa/id/{sis_id} 엔드포인트 시도
             try:
                 url = f"{self.base_url}/taxa/id/{species_id}"
-                print(f"📡 Trying v4 endpoint: {url}")
-
                 response = await asyncio.wait_for(
                     self._make_request(url),
                     timeout=3.0
@@ -1529,19 +1381,17 @@ class IUCNService:
                     v4_data = response.json()
                     if v4_data and 'taxon' in v4_data:
                         scientific_name = v4_data['taxon'].get('scientific_name')
-                        print(f"✅ v4 API로 학명 획득: {scientific_name}")
             except asyncio.TimeoutError:
-                print(f"⏱️ v4 API 타임아웃 (3s)")
             except Exception as e:
-                print(f"⚠️ v4 ID 조회 실패: {e}")
-
+            # ========================================
+            # Step 3.5: scientific_name_hint가 있으면 fallback으로 사용
+            # ========================================
+            if not scientific_name and scientific_name_hint:
+                scientific_name = scientific_name_hint
             # ========================================
             # Step 4: 학명 없으면 에러 응답 반환 (None 대신)
             # ========================================
             if not scientific_name:
-                print(f"❌ 학명을 찾을 수 없음. ID: {species_id}")
-                print(f"[RETURN] Error response")
-                print(f"{'='*60}\n")
                 # None 대신 에러 정보를 담은 딕셔너리 반환
                 return {
                     "id": species_id,
@@ -1566,8 +1416,6 @@ class IUCNService:
             # ========================================
             # Step 5: 학명으로 v4 데이터 조회
             # ========================================
-            print(f"🔍 학명으로 상세 조회: {scientific_name}")
-
             v3_data = None
             try:
                 v4_response = await asyncio.wait_for(
@@ -1579,12 +1427,8 @@ class IUCNService:
                 if v4_response:
                     v3_data = self._v4_to_v3_adapter(v4_response, scientific_name)
                 else:
-                    print(f"⚠️ v4 API 응답 없음")
             except asyncio.TimeoutError:
-                print(f"⏱️ v4 학명 조회 타임아웃 (5s)")
             except Exception as e:
-                print(f"⚠️ v4 학명 조회 실패: {e}")
-
             # ========================================
             # Step 6: Wikipedia 데이터 조회 (항상 영어로 가져옴)
             # ========================================
@@ -1594,12 +1438,8 @@ class IUCNService:
                     wikipedia_service.get_species_info(scientific_name, lang="en"),
                     timeout=2.0
                 )
-                print(f"✅ Wikipedia 데이터 획득 (영어)")
             except asyncio.TimeoutError:
-                print(f"⏱️ Wikipedia 타임아웃 (2s)")
             except Exception as e:
-                print(f"⚠️ Wikipedia 오류: {e}")
-
             # ========================================
             # Step 7: 프론트엔드 호환 응답 구성 (모든 필드 보장)
             # ========================================
@@ -1649,20 +1489,10 @@ class IUCNService:
                     detail_response = await translation_service.translate_species_info(
                         detail_response, target_lang=lang
                     )
-                    print(f"✅ AI 번역 완료 (언어: {lang})")
                 except Exception as e:
-                    print(f"⚠️ AI 번역 실패: {e}")
-
-            print(f"✅ 상세 정보 구성 완료")
-            print(f"[RETURN] Detail data")
-            print(f"{'='*60}\n")
-
             return detail_response
 
         except asyncio.TimeoutError:
-            print(f"⏱️ 전체 타임아웃 발생")
-            print(f"[RETURN] Error response")
-            print(f"{'='*60}\n")
             # 타임아웃 시에도 에러 정보를 담은 응답 반환
             return {
                 "id": species_id,
@@ -1684,11 +1514,8 @@ class IUCNService:
                 "error_message": "Timeout"
             }
         except Exception as e:
-            print(f"❌ Species Detail Error: {e}")
             import traceback
             traceback.print_exc()
-            print(f"[RETURN] Error response")
-            print(f"{'='*60}\n")
             # 예외 발생 시에도 에러 정보를 담은 응답 반환
             return {
                 "id": species_id,
@@ -1723,7 +1550,6 @@ class IUCNService:
         try:
             parts = scientific_name.split(' ', 1)
             if len(parts) < 2:
-                print(f"⚠️ Invalid scientific name format: {scientific_name}")
                 return None
             
             genus, species = parts[0], parts[1]
@@ -1732,18 +1558,14 @@ class IUCNService:
                 "genus_name": genus,
                 "species_name": species
             }
-            
-            print(f"🔍 Searching: {genus} {species}")
             response = await self._make_request(url, params)
             
             if response.status_code == 200:
                 return response.json()
             else:
-                print(f"⚠️ Search failed: {response.status_code}")
                 return None
                 
         except Exception as e:
-            print(f"❌ Scientific Name Search Error: {e}")
             return None
 
     async def close(self):

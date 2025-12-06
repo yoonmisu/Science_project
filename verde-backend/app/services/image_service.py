@@ -56,8 +56,7 @@ class ImageService:
 
             return None
 
-        except Exception as e:
-            print(f"❌ Wikimedia 이미지 검색 실패 ({species_name}): {e}")
+        except Exception:
             return None
 
     @staticmethod
@@ -97,8 +96,7 @@ class ImageService:
 
             return None
 
-        except Exception as e:
-            print(f"❌ iNaturalist 이미지 검색 실패 ({species_name}): {e}")
+        except Exception:
             return None
 
     @staticmethod
@@ -121,17 +119,14 @@ class ImageService:
         # 1. Wikimedia 시도
         image_url = ImageService.get_wikimedia_image(species_name, scientific_name)
         if image_url:
-            print(f"✅ Wikimedia 이미지 발견: {species_name}")
             return image_url
 
         # 2. iNaturalist 시도
         image_url = ImageService.get_inaturalist_image(species_name, scientific_name)
         if image_url:
-            print(f"✅ iNaturalist 이미지 발견: {species_name}")
             return image_url
 
         # 3. 기본 아이콘 반환
-        print(f"⚠️  이미지 없음, 기본 아이콘 사용: {species_name}")
         return "🦎"  # 기본 생물 아이콘
 
 

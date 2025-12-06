@@ -49,7 +49,6 @@ class GeocodingService:
             )
 
             if not location or not location.raw.get('address'):
-                print(f"⚠️  좌표 {lat}, {lng}에 대한 주소를 찾을 수 없습니다.")
                 return None
 
             address = location.raw['address']
@@ -58,7 +57,6 @@ class GeocodingService:
             country_code = address.get('country_code', '').lower()
 
             if not country_code:
-                print(f"⚠️  주소에 국가 코드가 없습니다: {address}")
                 return None
 
             # 국가 코드를 데이터베이스 형식으로 매핑
@@ -67,17 +65,13 @@ class GeocodingService:
             # 캐시에 저장
             self.cache[cache_key] = country_mapping
 
-            print(f"✅ 좌표 ({lat}, {lng}) → 국가: {country_mapping}")
             return country_mapping
 
         except GeocoderTimedOut:
-            print(f"❌ Geocoding 시간 초과: ({lat}, {lng})")
             return None
-        except GeocoderServiceError as e:
-            print(f"❌ Geocoding 서비스 오류: {e}")
+        except GeocoderServiceError:
             return None
-        except Exception as e:
-            print(f"❌ 예상치 못한 오류: {e}")
+        except Exception:
             return None
 
     def _map_country_code(self, iso_code: str) -> str:

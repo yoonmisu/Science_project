@@ -194,10 +194,6 @@ const InteractiveDottedMap = ({
   const [dots, setDots] = useState([]);
   const [projection, setProjection] = useState(null); // 좌표 변환용
 
-  // 디버그: dataVersion 변경 시 로그
-  useEffect(() => {
-    console.log(`🗺️ [InteractiveDottedMap] 렌더링 - category: ${category}, dataVersion: ${dataVersion}, dots: ${dots.length}개`);
-  }, [category, dataVersion, dots.length]);
 
   // 색상 ID 생성 함수 (소수 기반 분산)
   const idToColor = (id) => {
@@ -460,11 +456,6 @@ const InteractiveDottedMap = ({
           const colorData = category && countryCodeUpper
             ? getColorIntensity(category, countryCodeUpper)
             : { color: dotColor, hasData: true };
-
-          // 디버그: 첫 5개 한국 점에 대해서만 로그 (한 번만)
-          if (i < 5 && countryCodeUpper === 'KR' && dataVersion > 0) {
-            console.log(`🔴 [dot ${i}] KR: colorData=`, colorData, `baseDotColor will be:`, colorData.hasData ? colorData.color : '#d1d5db');
-          }
 
           // 종이 0개인 국가는 색상 없음 (기본 회색)
           // loading 상태면 hasData는 true지만 실제 데이터가 로드되기 전

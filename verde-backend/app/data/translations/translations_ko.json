@@ -1,7 +1,7 @@
 {
   "language": "ko",
-  "updated_at": "2025-12-06T19:31:51.747087",
-  "count": 2,
+  "updated_at": "2025-12-06T21:47:13.855304",
+  "count": 5,
   "translations": {
     "bc1b94ff1e0988c7f3f23a733513929b": {
       "original_text": "The Asian black bear, also known as the Asiatic black bear, moon bear and white-chested bear, is a m...",
@@ -12,6 +12,21 @@
       "original_text": "The polar bear is a large bear native to the Arctic and nearby areas. It is closely related to the b...",
       "translated_text": "북극곰은 북극과 그 주변 지역이 원산지인 대형 곰입니다.북극곰은 갈색곰과 가까운 친척이며 두 종은 교배가 가능합니다.북극곰은 체중으로 볼 때 현존하는 곰과 육식동물 중 가장 큰 종으로, 수컷 성체의 무게는 300~800kg(660~1,760파운드)입니다.성체 암컷은 훨씬 작기 때문에 이종성입니다.북극곰은 흰색 또는 노란색 털을 가지고 있으며 피부는 검은색이고 지방층이 두껍습니다.갈색곰보다 날씬하며 두개골이 좁고 목이 길며 어깨 혹이 낮습니다.이빨은 더 날카롭고 고기를 자르기에 더 적합합니다.발이 커서 얼음 위를 걷고 물속에서 헤엄칠 수 있습니다.",
       "cached_at": "2025-12-06T19:31:51.747067"
+    },
+    "bf370b98f87f9fa8dec1ea4ca2c6b35a": {
+      "original_text": "Dugong",
+      "translated_text": "듀공",
+      "cached_at": "2025-12-06T21:35:20.525336"
+    },
+    "bfa2dcec53011834dad525ed5e0a0883": {
+      "original_text": "The dugong is a marine mammal. It is one of four living species of the order Sirenia, which also inc...",
+      "translated_text": "듀공은 해양 포유류입니다. 바다소목(Sirenia)에 속하는 현존하는 네 종 중 하나이며, 이 목에는 세 종의 매너티도 포함됩니다. 한때 다양했던 듀공과(Dugongidae)의 유일한 현존하는 대표종입니다. 가장 가까운 현생 친척인 스텔러바다소는 18세기에 사냥으로 멸종되었습니다.",
+      "cached_at": "2025-12-06T21:35:20.534045"
+    },
+    "bc1668c749cb15e65eb3102e58f1dd2c": {
+      "original_text": "The Eurasian otter, also known as the European otter, Eurasian river otter, European river otter, co...",
+      "translated_text": "유라시아수달은 유럽수달, 유라시아강수달, 유럽강수달, 일반수달, 구세계수달 등으로도 알려져 있으며, 유라시아와 마그레브에 서식하는 반수생 포유류입니다. 족제비과(Mustelidae)의 수달아과(Lutrinae)에 속하며, 가장 널리 분포하는 종으로 유럽의 수로와 해안, 아시아 여러 지역, 그리고 북아프리카 일부 지역에서 발견됩니다. 유라시아수달은 주로 어류를 주식으로 하며, 영역 의식이 강합니다. 일부 지역에서는 멸종 위기에 처해 있지만, 다른 지역에서는 회복되고 있습니다.",
+      "cached_at": "2025-12-06T21:47:13.855286"
     }
   }
 }
