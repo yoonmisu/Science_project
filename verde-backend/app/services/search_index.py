@@ -9,6 +9,83 @@ from typing import Dict, List, Optional, Tuple
 import difflib
 from dataclasses import dataclass
 
+# 해양 포유류 학명 목록 (항상 "해양생물" 카테고리로 분류)
+# 주의: 완전 수생 동물만 포함 (반수생 동물인 수달, 하마, 북극곰 등은 제외)
+MARINE_MAMMAL_SPECIES = {
+    # 고래류 (Cetacea) - 완전 수생
+    "Balaenoptera musculus",      # 대왕고래
+    "Balaenoptera physalus",      # 참고래 (긴수염고래)
+    "Balaenoptera borealis",      # 보리고래
+    "Balaenoptera acutorostrata", # 밍크고래
+    "Balaenoptera edeni",         # 브라이드고래
+    "Megaptera novaeangliae",     # 혹등고래
+    "Balaena mysticetus",         # 북극고래
+    "Eubalaena australis",        # 남방참고래
+    "Eubalaena glacialis",        # 북대서양참고래
+    "Eubalaena japonica",         # 북태평양참고래
+    "Eschrichtius robustus",      # 귀신고래
+    "Physeter macrocephalus",     # 향유고래
+    "Kogia breviceps",            # 꼬마향유고래
+    "Orcinus orca",               # 범고래
+    "Tursiops truncatus",         # 큰돌고래
+    "Delphinus delphis",          # 참돌고래
+    "Stenella coeruleoalba",      # 줄무늬돌고래
+    "Stenella longirostris",      # 긴부리돌고래
+    "Grampus griseus",            # 위험돌고래
+    "Globicephala melas",         # 긴지느러미고래
+    "Globicephala macrorhynchus", # 짧은지느러미고래
+    "Pseudorca crassidens",       # 혹범고래
+    "Feresa attenuata",           # 난쟁이범고래
+    "Peponocephala electra",      # 멜론머리고래
+    "Lagenorhynchus obliquidens", # 태평양흰줄박이돌고래
+    "Sotalia fluviatilis",        # 투쿠시
+    "Inia geoffrensis",           # 아마존강돌고래
+    "Lipotes vexillifer",         # 바이지
+    "Neophocaena asiaeorientalis", # 상괭이
+    "Neophocaena phocaenoides",   # 인도태평양상괭이
+    "Sousa chinensis",            # 인도태평양혹등돌고래
+    "Platanista gangetica",       # 갠지스강돌고래
+    "Phocoena phocoena",          # 쇠돌고래
+    "Phocoenoides dalli",         # 돌쇠돌고래
+    "Delphinapterus leucas",      # 흰돌고래 (벨루가)
+    "Monodon monoceros",          # 일각고래
+    "Ziphius cavirostris",        # 큐비에부리고래
+    "Mesoplodon densirostris",    # 블레인빌부리고래
+
+    # 해우류 (Sirenia) - 완전 수생
+    "Trichechus manatus",         # 서인도매너티
+    "Trichechus inunguis",        # 아마존매너티
+    "Trichechus senegalensis",    # 서아프리카매너티
+    "Dugong dugon",               # 듀공
+
+    # 기각류 (Pinnipedia) - 물범, 바다사자 등 (해양 의존)
+    "Monachus monachus",          # 지중해몽크물범
+    "Neomonachus schauinslandi",  # 하와이몽크물범
+    "Halichoerus grypus",         # 회색물범
+    "Phoca vitulina",             # 항구물범
+    "Phoca largha",               # 점박이물범
+    "Phoca hispida",              # 고리물범
+    "Pagophilus groenlandicus",   # 하프물범
+    "Erignathus barbatus",        # 턱수염물범
+    "Cystophora cristata",        # 두건물범
+    "Mirounga leonina",           # 남방코끼리물범
+    "Mirounga angustirostris",    # 북방코끼리물범
+    "Hydrurga leptonyx",          # 표범물범
+    "Lobodon carcinophaga",       # 게잡이물범
+    "Leptonychotes weddellii",    # 웨델물범
+    "Ommatophoca rossii",         # 로스물범
+    "Odobenus rosmarus",          # 바다코끼리
+    "Eumetopias jubatus",         # 스텔라바다사자
+    "Zalophus californianus",     # 캘리포니아바다사자
+    "Otaria flavescens",          # 남미바다사자
+    "Arctocephalus pusillus",     # 남아프리카물개
+    "Arctocephalus gazella",      # 남극물개
+    "Callorhinus ursinus",        # 북방물개
+
+    # 해달 (Enhydra lutris)만 포함 - 거의 완전 수생
+    "Enhydra lutris",             # 해달
+}
+
 # 학명 -> 정보 매핑 (일반명, 카테고리, 서식 국가)
 @dataclass
 class SpeciesInfo:
@@ -501,11 +578,14 @@ def build_search_index() -> Tuple[Dict[str, List[str]], Dict[str, Dict]]:
                     names = SPECIES_NAMES_DB.get(scientific_name, (scientific_name, scientific_name))
                     common_name, korean_name = names if isinstance(names, tuple) else (names, names)
 
+                    # 해양 포유류는 항상 "해양생물" 카테고리로 분류
+                    final_category = "해양생물" if scientific_name in MARINE_MAMMAL_SPECIES else category
+
                     species_data[scientific_name] = {
                         "scientific_name": scientific_name,
                         "common_name": common_name,
                         "korean_name": korean_name,
-                        "category": category,
+                        "category": final_category,
                         "countries": [country_code]
                     }
 
@@ -688,35 +768,33 @@ def search_species(
     return results
 
 
-def get_species_countries(query: str, category: Optional[str] = None) -> Tuple[List[str], str, Optional[str]]:
+def get_species_countries(query: str, category: Optional[str] = None) -> Tuple[List[str], str, Optional[str], Optional[str]]:
     """
     종 검색 후 서식 국가 목록을 반환합니다.
+
+    ⚠️ 개선: 정확히 매칭된 종의 국가만 반환 (유사 종 제외)
 
     Args:
         query: 검색어
         category: 카테고리 필터
 
     Returns:
-        (국가 코드 리스트, 매칭된 종 이름, 카테고리)
+        (국가 코드 리스트, 매칭된 종 이름, 카테고리, 매칭된 학명)
     """
     results = search_species(query, category)
 
     if not results:
-        return [], "", None
+        return [], "", None, None
 
-    # 가장 높은 점수의 종 정보 사용
+    # 가장 높은 점수의 종 정보만 사용 (유사 종 제외)
     best_match = results[0]
     matched_name = best_match.get("korean_name") or best_match.get("common_name") or best_match.get("scientific_name")
     matched_category = best_match.get("category")
+    matched_scientific_name = best_match.get("scientific_name")
 
-    # 상위 결과의 국가만 수집 (점수 차이가 큰 경우 제외)
-    best_score = best_match.get("match_score", 0)
-    all_countries = set()
+    # ⚠️ 핵심 변경: 가장 높은 점수의 종 국가만 반환 (다른 유사 종 제외)
+    # 이전: 점수 차이가 30점 이내인 모든 종의 국가를 수집
+    # 변경: 최고 매칭 종의 국가만 반환하여 정확도 향상
+    all_countries = list(best_match.get("countries", []))
 
-    for result in results:
-        # 점수 차이가 30점 이상 나면 제외 (관련성 낮음)
-        if best_score - result.get("match_score", 0) > 30:
-            break
-        all_countries.update(result["countries"])
-
-    return list(all_countries), matched_name, matched_category
+    return all_countries, matched_name, matched_category, matched_scientific_name

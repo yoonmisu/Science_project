@@ -131,18 +131,26 @@ SPECIES_TRANSLATIONS = {
 async def get_species(
     country: Optional[str] = None,
     category: Optional[str] = None,
+    species_name: Optional[str] = None,  # 검색된 종 이름 필터
     page: int = Query(1, ge=1),
     limit: int = Query(3, ge=1, le=100)
 ):
     """
     외부 API(IUCN + Wikipedia)를 통해 생물 다양성 데이터를 조회합니다.
     데이터베이스를 사용하지 않습니다.
+
+    Args:
+        country: 국가 코드
+        category: 카테고리 (동물, 식물, 곤충, 해양생물)
+        species_name: 검색된 종 이름 (검색 모드일 때 해당 종만 필터링)
+        page: 페이지 번호
+        limit: 페이지당 항목 수
     """
     if not country:
         return {"data": [], "total": 0, "page": page, "totalPages": 0}
 
     # IUCN API + Wikipedia API 호출 (카테고리 필터링 적용)
-    species_list = await iucn_service.get_species_by_country(country, category)
+    species_list = await iucn_service.get_species_by_country(country, category, species_name)
 
     # API 호출 결과가 None인 경우 처리
     if species_list is None:
@@ -231,11 +239,11 @@ async def search_species(
     client_ip = request.client.host if request.client else "unknown"
 
     # === 1단계: 로컬 인덱스 검색 (즉시) ===
-    countries, matched_name, matched_category = get_species_countries(query, category)
+    countries, matched_name, matched_category, matched_scientific_name = get_species_countries(query, category)
 
     # 검색 결과 로깅
     if countries:
-        print(f"✅ 로컬 인덱스 매칭: '{matched_name}' → {len(countries)}개 국가")
+        print(f"✅ 로컬 인덱스 매칭: '{matched_name}' ({matched_scientific_name}) → {len(countries)}개 국가")
         print(f"   국가: {countries}")
         print(f"   카테고리: {matched_category}")
     else:
@@ -249,19 +257,19 @@ async def search_species(
         from app.services.search_index import fuzzy_match_keyword, SPECIES_DATA
 
         for term in search_terms:
-            matched_species = fuzzy_match_keyword(term, threshold=0.5)
-            if matched_species:
-                for sci_name in matched_species:
-                    info = SPECIES_DATA.get(sci_name, {})
-                    for country in info.get("countries", []):
-                        if country not in countries:
-                            countries.append(country)
-                    if not matched_name:
-                        matched_name = info.get("korean_name") or info.get("common_name") or sci_name
-                        matched_category = info.get("category")
+            matched_species_list = fuzzy_match_keyword(term, threshold=0.5)
+            if matched_species_list:
+                # ⚠️ 첫 번째 매칭 종만 사용 (정확도 향상)
+                sci_name = matched_species_list[0]
+                info = SPECIES_DATA.get(sci_name, {})
+                countries = list(info.get("countries", []))
+                matched_name = info.get("korean_name") or info.get("common_name") or sci_name
+                matched_category = info.get("category")
+                matched_scientific_name = sci_name
+                break  # 첫 번째 매칭만 사용
 
         if countries:
-            print(f"✅ 번역 기반 매칭: {len(countries)}개 국가")
+            print(f"✅ 번역 기반 매칭: '{matched_name}' ({matched_scientific_name}) → {len(countries)}개 국가")
 
     # IP 기반 중복 검색 확인
     last_query = iucn_service.last_search_cache.get(client_ip)
@@ -294,7 +302,8 @@ async def search_species(
         "countries": countries,
         "total": len(countries),
         "category": matched_category,
-        "matched_species": matched_name  # 매칭된 종 이름 추가
+        "matched_species": matched_name,  # 매칭된 종 이름 (한글/영어)
+        "matched_scientific_name": matched_scientific_name  # 매칭된 학명 (정확한 필터링용)
     }
 
 @router.get("/trending", response_model=Dict[str, Any])

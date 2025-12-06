@@ -107,11 +107,12 @@ const apiRequest = async (endpoint, options = {}) => {
  * @param {string} category - 카테고리 (예: '동물', '식물', '곤충', '해양생물')
  * @param {number} page - 페이지 번호 (기본값: 1)
  * @param {number} limit - 페이지당 항목 수 (기본값: 3)
+ * @param {string|null} speciesName - 종 이름 필터 (검색 모드일 때, 기본값: null)
  * @returns {Promise<Object>} { data: [], total, page, totalPages }
  */
-export const fetchSpeciesByCountry = async (countryCode, category, page = 1, limit = 3) => {
+export const fetchSpeciesByCountry = async (countryCode, category, page = 1, limit = 3, speciesName = null) => {
   try {
-    console.log(`🔍 API 호출: ${countryCode} - ${category} (페이지 ${page})`);
+    console.log(`🔍 API 호출: ${countryCode} - ${category} (페이지 ${page})${speciesName ? ` [검색: ${speciesName}]` : ''}`);
 
     // ISO Alpha-2 코드를 직접 사용 (예: 'kr', 'jp', 'us')
     // IUCN API는 ISO 코드를 대문자로 요구 (백엔드에서 처리)
@@ -121,6 +122,11 @@ export const fetchSpeciesByCountry = async (countryCode, category, page = 1, lim
       page: page.toString(),
       limit: limit.toString(),
     });
+
+    // 검색 모드일 때 species_name 파라미터 추가
+    if (speciesName) {
+      params.append('species_name', speciesName);
+    }
 
     const response = await apiRequest(`/api/v1/species?${params}`);
 
@@ -451,6 +457,8 @@ export const searchSpeciesByName = async (query, category = null) => {
       countries: response.countries,
       total: response.total,
       category: response.category, // 매칭된 카테고리 추가
+      matchedSpecies: response.matched_species, // 검색된 종 이름 (한글/영어)
+      matchedScientificName: response.matched_scientific_name, // 검색된 종 학명 (정확한 필터링용)
     };
   } catch (error) {
     console.error('❌ searchSpeciesByName 오류:', error);

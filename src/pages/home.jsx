@@ -26,6 +26,7 @@ const HomePage = () => {
   // 검색 기능 상태
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredCountries, setFilteredCountries] = useState(null); // null = 전체 표시, array = 필터링된 국가들
+  const [searchedSpeciesName, setSearchedSpeciesName] = useState(null); // 검색된 종 이름 (검색 모드일 때 사용)
 
   // 실시간 검색어 상태
   const [trendingSearches, setTrendingSearches] = useState([]);
@@ -145,14 +146,15 @@ const HomePage = () => {
           return;
         }
 
-        console.log(`📡 API 호출 시작: ${selectedLocation.name} (${countryCode}) - ${category}, 페이지: ${speciesPage + 1}`);
+        console.log(`📡 API 호출 시작: ${selectedLocation.name} (${countryCode}) - ${category}, 페이지: ${speciesPage + 1}${searchedSpeciesName ? `, 검색: ${searchedSpeciesName}` : ''}`);
 
-        // ISO 코드 기반 API 호출
+        // ISO 코드 기반 API 호출 (검색 모드일 때 species_name 전달)
         const response = await fetchSpeciesByCountry(
           countryCode,
           category,
           speciesPage + 1,
-          3
+          3,
+          searchedSpeciesName  // 검색된 종 이름 (없으면 null)
         );
 
         console.log('📦 API 응답 받음:', response);
@@ -170,7 +172,7 @@ const HomePage = () => {
     };
 
     loadSpeciesData();
-  }, [selectedLocation?.countryCode, category, speciesPage, isModalOpen, modalView]);
+  }, [selectedLocation?.countryCode, category, speciesPage, isModalOpen, modalView, searchedSpeciesName]);
 
   // InteractiveDottedMap 콜백: { name, code } 객체를 받음 (좌표 정보는 제거됨)
   const handleCountryClick = (location) => {
@@ -293,6 +295,7 @@ const HomePage = () => {
       console.log('⚠️ 검색어 비어있음');
       // 검색어가 비어있으면 전체 표시
       setFilteredCountries(null);
+      setSearchedSpeciesName(null); // 검색 필터 해제
 
       // 전체 표시 시 모든 국가의 종 개수 다시 로드
       try {
@@ -314,27 +317,39 @@ const HomePage = () => {
 
       if (result.countries && result.countries.length > 0) {
         console.log(`🎯 ${result.countries.length}개 국가 찾음:`, result.countries);
-        setFilteredCountries(result.countries);
+        console.log(`🔍 검색된 종: ${result.matchedSpecies}`);
 
-        // 매칭된 종의 카테고리로 자동 전환
+        // 검색된 종의 카테고리 결정 (없으면 현재 카테고리 유지)
+        const targetCategory = result.category || category;
+
+        // 매칭된 종의 카테고리로 자동 전환 (먼저 카테고리 변경)
         if (result.category && result.category !== category) {
           console.log('🔄 카테고리 변경:', category, '->', result.category);
           setCategory(result.category);
         }
 
-        // 필터링된 국가들의 실제 종 개수 업데이트 (검색 결과는 1개씩)
+        // 필터링된 국가들 설정
+        setFilteredCountries(result.countries);
+
+        // 검색된 종의 학명 저장 (국가 클릭 시 해당 종만 표시하기 위해)
+        // matched_scientific_name이 있으면 학명 사용, 없으면 일반 이름 사용
+        setSearchedSpeciesName(result.matchedScientificName || result.matchedSpecies);
+
+        // 필터링된 국가들의 실제 종 개수 업데이트 (새 카테고리에 맞게)
         const searchResultCounts = {};
         result.countries.forEach(countryCode => {
           searchResultCounts[countryCode] = 1; // 검색된 종 1개씩
         });
-        updateSpeciesCount(searchResultCounts, category);
-        console.log('📊 검색 결과 종 개수 업데이트:', searchResultCounts);
+        // 새 카테고리에 종 개수 업데이트
+        updateSpeciesCount(searchResultCounts, targetCategory);
+        console.log('📊 검색 결과 종 개수 업데이트:', searchResultCounts, '카테고리:', targetCategory);
 
         // 지도 재렌더링 트리거
         setMapDataVersion(v => v + 1);
       } else {
         console.log('❌ 검색 결과 없음');
         setFilteredCountries([]);
+        setSearchedSpeciesName(null);
       }
 
       // 검색 후 즉시 실시간 검색어 새로고침
@@ -342,6 +357,7 @@ const HomePage = () => {
     } catch (error) {
       console.error('❌ 검색 오류:', error);
       setFilteredCountries([]);
+      setSearchedSpeciesName(null);
     }
   };
 
@@ -352,6 +368,7 @@ const HomePage = () => {
     // 빈 값이면 필터 초기화
     if (!value.trim()) {
       setFilteredCountries(null);
+      setSearchedSpeciesName(null); // 검색 필터 해제
     }
   };
 
@@ -367,6 +384,7 @@ const HomePage = () => {
   const clearSearch = () => {
     setSearchQuery('');
     setFilteredCountries(null);
+    setSearchedSpeciesName(null); // 검색된 종 이름 초기화
   };
 
   return (
@@ -475,6 +493,7 @@ const HomePage = () => {
                     // 카테고리 변경 시 필터링 초기화
                     setFilteredCountries(null);
                     setSearchQuery('');
+                    setSearchedSpeciesName(null); // 검색된 종 이름 초기화
                     console.log(`✨ 카테고리 변경: ${cat} (필터링 초기화)`);
                   }}
                   style={{
@@ -643,18 +662,40 @@ const HomePage = () => {
                         try {
                           const result = await searchSpeciesByName(item.query, null);
                           if (result.countries && result.countries.length > 0) {
-                            setFilteredCountries(result.countries);
+                            // 검색된 종의 카테고리 결정
+                            const targetCategory = result.category || category;
+
+                            // 매칭된 종의 카테고리로 자동 전환 (먼저 카테고리 변경)
                             if (result.category && result.category !== category) {
+                              console.log('🔄 카테고리 변경:', category, '->', result.category);
                               setCategory(result.category);
                             }
+
+                            // 필터링된 국가들 설정
+                            setFilteredCountries(result.countries);
+
+                            // 검색된 종의 학명 저장 (국가 클릭 시 해당 종만 표시하기 위해)
+                            setSearchedSpeciesName(result.matchedScientificName || result.matchedSpecies);
+
+                            // 필터링된 국가들의 실제 종 개수 업데이트 (새 카테고리에 맞게)
+                            const searchResultCounts = {};
+                            result.countries.forEach(countryCode => {
+                              searchResultCounts[countryCode] = 1;
+                            });
+                            updateSpeciesCount(searchResultCounts, targetCategory);
+
+                            // 지도 재렌더링 트리거
+                            setMapDataVersion(v => v + 1);
                           } else {
                             setFilteredCountries([]);
+                            setSearchedSpeciesName(null);
                           }
                           // 클릭 후에도 실시간 검색어 새로고침
                           await refreshTrendingSearches();
                         } catch (error) {
                           console.error('❌ 검색 오류:', error);
                           setFilteredCountries([]);
+                          setSearchedSpeciesName(null);
                         }
                       }, 100);
                     }}
@@ -763,7 +804,7 @@ const HomePage = () => {
                 color: '#1d1d1d'
               }}>
                 <span style={{ fontSize: '32px' }}>{theme.icon}</span>
-                {selectedLocation.name}의 생물 다양성 - {category}
+                {selectedLocation.name}의 {searchedSpeciesName ? `"${searchQuery}" 검색 결과` : `생물 다양성 - ${category}`}
               </h2>
               <button
                 className={theme.button}

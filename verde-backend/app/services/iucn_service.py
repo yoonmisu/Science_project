@@ -888,7 +888,7 @@ class IUCNService:
         print(f"🦁 대표 동물 조회 완료: {len(iconic_species)}종 확보")
         return iconic_species
 
-    async def get_species_by_country(self, country_code: str, category: str = None) -> List[Dict[str, Any]]:
+    async def get_species_by_country(self, country_code: str, category: str = None, species_name: str = None) -> List[Dict[str, Any]]:
         """
         IUCN API v4를 사용하여 국가별 멸종위기종을 동적으로 조회합니다.
 
@@ -901,6 +901,7 @@ class IUCNService:
         Args:
             country_code: 국가 코드 (ISO Alpha-2)
             category: 카테고리 필터 (동물, 식물, 곤충, 해양생물) - None이면 모든 카테고리
+            species_name: 종 이름 필터 (검색 모드일 때 해당 종만 반환)
 
         Returns:
             종 데이터 리스트
@@ -909,7 +910,7 @@ class IUCNService:
             original_input = country_code
             print(f"\n{'='*60}")
             print(f"[ENTRY] get_species_by_country 시작")
-            print(f"  입력값: '{original_input}', 카테고리: '{category}'")
+            print(f"  입력값: '{original_input}', 카테고리: '{category}', 종이름: '{species_name}'")
 
             # 1. 국가 코드 정규화
             country_code = self._normalize_country_code(country_code)
@@ -1215,11 +1216,112 @@ class IUCNService:
 
             print(f"✅ 최종 결과: {len(unique_species)}개 종")
 
-            # 캐시 저장
-            self.country_cache[cache_key] = {
-                'data': unique_species,
-                'timestamp': datetime.now()
-            }
+            # 캐시 저장 (species_name 필터 없을 때만)
+            if not species_name:
+                self.country_cache[cache_key] = {
+                    'data': unique_species,
+                    'timestamp': datetime.now()
+                }
+
+            # ========================================
+            # species_name 필터링 (검색 모드일 때)
+            # ========================================
+            if species_name:
+                species_name_lower = species_name.lower()
+                print(f"🔍 종 이름 필터링: '{species_name}'")
+
+                # scientific_name 또는 common_name에 검색어가 포함된 종만 필터링
+                filtered_species = [
+                    sp for sp in unique_species
+                    if (sp.get('scientific_name', '').lower().find(species_name_lower) >= 0 or
+                        sp.get('common_name', '').lower().find(species_name_lower) >= 0 or
+                        sp.get('name', '').lower().find(species_name_lower) >= 0)
+                ]
+                print(f"🔍 필터링 결과: {len(filtered_species)}개 종 (전체 {len(unique_species)}개 중)")
+
+                # ========================================
+                # 폴백: 필터링 결과가 0개일 때 직접 taxon API 조회
+                # ========================================
+                if len(filtered_species) == 0 and ' ' in species_name:
+                    print(f"🔄 폴백: IUCN taxon API로 '{species_name}' 직접 조회")
+                    try:
+                        # taxon 정보 조회
+                        taxon_info = await self._fetch_taxon_info(species_name)
+                        if taxon_info:
+                            sis_id = taxon_info.get('sis_id')
+                            scientific_name_from_api = taxon_info.get('scientific_name', species_name)
+                            class_name = (taxon_info.get('class_name') or '').upper()
+
+                            # Wikipedia 데이터 조회 (2초 타임아웃)
+                            wiki_info = {}
+                            try:
+                                wiki_info = await asyncio.wait_for(
+                                    wikipedia_service.get_species_info(scientific_name_from_api),
+                                    timeout=2.0
+                                )
+                                print(f"  ✅ Wikipedia 데이터 획득")
+                            except (asyncio.TimeoutError, Exception) as e:
+                                print(f"  ⏱️ Wikipedia 조회 실패: {e}")
+
+                            # 공통 이름 결정
+                            common_name = wiki_info.get("common_name")
+                            if not common_name:
+                                common_names = taxon_info.get('common_names', [])
+                                if common_names:
+                                    common_name = common_names[0].get('name')
+                            if not common_name:
+                                common_name = scientific_name_from_api
+
+                            # 이미지 URL
+                            image_url = wiki_info.get("image_url", "")
+
+                            # IUCN 위험 등급 조회
+                            risk_level = "DD"
+                            if sis_id:
+                                try:
+                                    assess_url = f"{self.base_url}/taxa/sis/{sis_id}/assessments"
+                                    assess_resp = await self._make_request(assess_url, {"latest": "true"})
+                                    if assess_resp.status_code == 200:
+                                        assess_data = assess_resp.json()
+                                        assessments = assess_data.get('assessments', [])
+                                        if assessments:
+                                            risk_level = assessments[0].get('red_list_category_code', 'DD')
+                                except Exception:
+                                    pass
+
+                            # 카테고리 결정
+                            fallback_category = category or "동물"
+                            if class_name in ['MAMMALIA', 'AVES', 'REPTILIA', 'AMPHIBIA']:
+                                fallback_category = "동물"
+                            elif class_name == 'INSECTA':
+                                fallback_category = "곤충"
+                            elif class_name in ['ACTINOPTERYGII', 'CHONDRICHTHYES']:
+                                fallback_category = "해양생물"
+                            elif class_name in ['MAGNOLIOPSIDA', 'LILIOPSIDA', 'PINOPSIDA']:
+                                fallback_category = "식물"
+
+                            fallback_species = {
+                                "id": sis_id,
+                                "scientific_name": scientific_name_from_api,
+                                "common_name": common_name,
+                                "name": common_name,
+                                "category": fallback_category,
+                                "image": image_url,
+                                "image_url": image_url,
+                                "description": wiki_info.get("description", f"{common_name} - IUCN {risk_level}"),
+                                "country": country_code.upper(),
+                                "risk_level": risk_level,
+                                "is_searched": True  # 검색으로 조회된 종 표시
+                            }
+
+                            filtered_species = [fallback_species]
+                            print(f"  ✅ 폴백 성공: {common_name} ({scientific_name_from_api})")
+                        else:
+                            print(f"  ⚠️ 폴백 실패: taxon 정보 없음")
+                    except Exception as e:
+                        print(f"  ❌ 폴백 오류: {e}")
+
+                unique_species = filtered_species
 
             # ========================================
             # [LOG 5/5 - Return] 최종 반환 데이터
