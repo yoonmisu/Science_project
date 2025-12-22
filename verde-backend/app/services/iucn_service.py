@@ -186,10 +186,52 @@ class IUCNService:
         if not country_input:
             return None
 
-        # 먼저 대문자로 변환 (ISO 코드는 대문자)
-        country_upper = country_input.upper().strip()
+        # 입력 정리
+        country_input = country_input.strip()
+        country_lower = country_input.lower()
+        country_upper = country_input.upper()
 
-        # 1. 이미 유효한 2자리 ISO 코드인지 확인 (빠른 경로)
+        # 1. Common name aliases 먼저 확인 (가장 자주 사용되는 국가명)
+        # pycountry보다 먼저 체크하여 "usa", "russia" 등의 일반명을 빠르게 처리
+        common_aliases = {
+            "korea": "KR",
+            "south korea": "KR",
+            "north korea": "KP",
+            "japan": "JP",
+            "china": "CN",
+            "russia": "RU",
+            "usa": "US",
+            "vietnam": "VN",
+            "viet nam": "VN",
+            "australia": "AU",
+            "brazil": "BR",
+            "india": "IN",
+            "kenya": "KE",
+            "uk": "GB",
+            "england": "GB",
+            "britain": "GB",
+            "united kingdom": "GB",
+            "germany": "DE",
+            "france": "FR",
+            "canada": "CA",
+            "mexico": "MX",
+            "argentina": "AR",
+            "southafrica": "ZA",
+            "south africa": "ZA",
+            "newzealand": "NZ",
+            "new zealand": "NZ",
+            # Korean names
+            "한국": "KR",
+            "일본": "JP",
+            "중국": "CN",
+            "러시아": "RU",
+            "미국": "US",
+        }
+
+        if country_lower in common_aliases:
+            return common_aliases[country_lower]
+
+        # 2. 이미 유효한 2자리 ISO 코드인지 확인 (빠른 경로)
         if len(country_upper) == 2:
             try:
                 country = pycountry.countries.get(alpha_2=country_upper)
@@ -198,7 +240,7 @@ class IUCNService:
             except (KeyError, AttributeError):
                 pass
 
-        # 2. 3자리 ISO 코드 (alpha-3) 확인
+        # 3. 3자리 ISO 코드 (alpha-3) 확인
         if len(country_upper) == 3:
             try:
                 country = pycountry.countries.get(alpha_3=country_upper)
@@ -207,19 +249,7 @@ class IUCNService:
             except (KeyError, AttributeError):
                 pass
 
-        # 3. Common name aliases (pycountry가 인식하지 못하는 일반명)
-        common_aliases = {
-            "south korea": "KR",
-            "north korea": "KP",
-            "vietnam": "VN",
-            "viet nam": "VN",
-        }
-
-        country_lower = country_input.lower().strip()
-        if country_lower in common_aliases:
-            return common_aliases[country_lower]
-
-        # 4. 국가명 검색 (공식명칭, 일반명칭 모두 지원)
+        # 4. 국가명 검색 (공식명칭, 일반명칭 모두 지원) - pycountry 사용
         try:
             # 정확한 이름 매칭 시도
             country = pycountry.countries.get(name=country_input)
@@ -851,6 +881,97 @@ class IUCNService:
                 cache_time = cache_entry.get('timestamp')
                 if cache_time and datetime.now() - cache_time < self.cache_ttl:
                     cached_data = cache_entry.get('data', [])
+
+                    # ⭐ species_name 필터링 적용 (검색 모드일 때)
+                    if species_name:
+                        species_name_lower = species_name.lower()
+                        filtered_cached = [
+                            sp for sp in cached_data
+                            if (sp.get('scientific_name', '').lower().find(species_name_lower) >= 0 or
+                                sp.get('common_name', '').lower().find(species_name_lower) >= 0 or
+                                sp.get('name', '').lower().find(species_name_lower) >= 0)
+                        ]
+
+                        # 캐시에서 찾으면 반환, 못 찾으면 폴백으로 직접 조회
+                        if filtered_cached:
+                            return filtered_cached
+
+                        # 캐시에 없으면 직접 taxon API로 조회 (폴백)
+                        if ' ' in species_name:
+                            try:
+                                taxon_info = await self._fetch_taxon_info(species_name)
+                                if taxon_info:
+                                    sis_id = taxon_info.get('sis_id')
+                                    scientific_name_from_api = taxon_info.get('scientific_name', species_name)
+                                    class_name = (taxon_info.get('class_name') or '').upper()
+
+                                    # Wikipedia 데이터 조회 (2초 타임아웃)
+                                    wiki_info = {}
+                                    try:
+                                        wiki_info = await asyncio.wait_for(
+                                            wikipedia_service.get_species_info(scientific_name_from_api),
+                                            timeout=2.0
+                                        )
+                                    except (asyncio.TimeoutError, Exception):
+                                        pass
+
+                                    # 공통 이름 결정
+                                    common_name = wiki_info.get("common_name")
+                                    if not common_name:
+                                        common_names = taxon_info.get('common_names', [])
+                                        if common_names:
+                                            common_name = common_names[0].get('name')
+                                    if not common_name:
+                                        common_name = scientific_name_from_api
+
+                                    image_url = wiki_info.get("image_url", "")
+
+                                    # IUCN 위험 등급 조회
+                                    risk_level = "DD"
+                                    if sis_id:
+                                        try:
+                                            assess_url = f"{self.base_url}/taxa/sis/{sis_id}/assessments"
+                                            assess_resp = await self._make_request(assess_url, {"latest": "true"})
+                                            if assess_resp.status_code == 200:
+                                                assess_data = assess_resp.json()
+                                                assessments = assess_data.get('assessments', [])
+                                                if assessments:
+                                                    risk_level = assessments[0].get('red_list_category_code', 'DD')
+                                        except Exception:
+                                            pass
+
+                                    # 카테고리 결정
+                                    fallback_category = category or "동물"
+                                    if class_name in ['MAMMALIA', 'AVES', 'REPTILIA', 'AMPHIBIA']:
+                                        fallback_category = "동물"
+                                    elif class_name == 'INSECTA':
+                                        fallback_category = "곤충"
+                                    elif class_name in ['ACTINOPTERYGII', 'CHONDRICHTHYES']:
+                                        fallback_category = "해양생물"
+                                    elif class_name in ['MAGNOLIOPSIDA', 'LILIOPSIDA', 'PINOPSIDA']:
+                                        fallback_category = "식물"
+
+                                    fallback_species = {
+                                        "id": sis_id,
+                                        "scientific_name": scientific_name_from_api,
+                                        "common_name": common_name,
+                                        "name": common_name,
+                                        "category": fallback_category,
+                                        "image": image_url,
+                                        "image_url": image_url,
+                                        "description": wiki_info.get("description", f"{common_name} - IUCN {risk_level}"),
+                                        "country": country_code.upper(),
+                                        "risk_level": risk_level,
+                                        "is_searched": True
+                                    }
+
+                                    return [fallback_species]
+                            except Exception:
+                                pass
+
+                        # 폴백도 실패하면 빈 리스트 반환
+                        return []
+
                     return cached_data
 
             # 3. IUCN API v4 /countries/{code} 호출 (10페이지, 1000종 - 다양한 클래스 포함)
@@ -1121,6 +1242,25 @@ class IUCNService:
                     unique_species.insert(iconic_added, iconic)
                     iconic_added += 1
 
+            # ========================================
+            # 일관된 정렬 (데이터 변경 문제 해결)
+            # ========================================
+            # 정렬 기준: 1) risk_level (CR > EN > VU > 기타), 2) scientific_name (알파벳순)
+            risk_priority = {'CR': 0, 'EN': 1, 'VU': 2, 'NT': 3, 'LC': 4, 'DD': 5, 'NE': 6}
+
+            # 대표 동물(iconic)은 맨 앞에 유지하면서 나머지만 정렬
+            iconic_species = unique_species[:iconic_added] if category == "동물" or category is None else []
+            other_species = unique_species[iconic_added:] if category == "동물" or category is None else unique_species
+
+            # 나머지 종들을 risk_level → scientific_name 순으로 정렬
+            other_species.sort(key=lambda x: (
+                risk_priority.get(x.get('risk_level', 'DD'), 5),
+                x.get('scientific_name', '').lower()
+            ))
+
+            # 대표 동물 + 정렬된 나머지 종
+            unique_species = iconic_species + other_species
+
             # 캐시 저장 (species_name 필터 없을 때만)
             if not species_name:
                 self.country_cache[cache_key] = {
@@ -1211,7 +1351,6 @@ class IUCNService:
                                 "risk_level": risk_level,
                                 "is_searched": True  # 검색으로 조회된 종 표시
                             }
-
                             filtered_species = [fallback_species]
                     except Exception:
                         pass
